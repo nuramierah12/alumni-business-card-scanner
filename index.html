@@ -24,9 +24,22 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
         
-        .btn-action { background-color: #008CBA; color: white; padding: 14px; width: 100%; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 15px; text-align: center; display: block; box-sizing: border-box;}
-        .btn-gallery { background-color: #6c757d; }
+        /* Gaya butang berbentuk label supaya sentuhan pengguna dikesan terus oleh sistem telefon */
+        .btn-upload-box {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 15px;
+            text-align: center;
+            cursor: pointer;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
         .btn-camera { background-color: #ff9800; }
+        .btn-gallery { background-color: #6c757d; }
         .btn-save { background-color: #4CAF50; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: none; cursor: pointer; margin-top: 20px;}
     </style>
 </head>
@@ -35,13 +48,17 @@
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
     
-    <!-- Direct Native Camera Capture (Guaranteed to open phone camera) -->
-    <label for="camera-uploader" class="btn-action btn-camera">📸 Take Photo with Camera</label>
-    <input type="file" id="camera-uploader" accept="image/*" capture="environment" style="display:none;">
+    <!-- Butang Kamera Rasmi (HTML Label + Input Capture) -->
+    <label for="camera-input" class="btn-upload-box btn-camera">
+        📸 Ambil Gambar dengan Kamera
+    </label>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
 
-    <!-- Choose from Gallery -->
-    <button class="btn-action btn-gallery" onclick="document.getElementById('gallery-uploader').click()">🖼️ Choose from Gallery</button>
-    <input type="file" id="gallery-uploader" accept="image/*" style="display:none;">
+    <!-- Butang Galeri Rasmi -->
+    <label for="gallery-input" class="btn-upload-box btn-gallery">
+        🖼️ Pilih dari Galeri
+    </label>
+    <input type="file" id="gallery-input" accept="image/*" style="display: none;">
 
     <canvas id="canvas" style="display:none;"></canvas>
     
@@ -50,7 +67,7 @@
     <div id="output-box">
         
         <div class="alert-note">
-            <b>Admin Note:</b> Please review the details below. Titles (Dr./Mr.), phone numbers, and other fields can be edited manually.
+            <b>Admin Note:</b> Sila semak butiran di bawah. Tajuk (Dr./Mr.), nombor telefon, dan maklumat lain boleh disunting secara manual.
         </div>
 
         <div class="form-group">
@@ -118,21 +135,15 @@
         const statusDiv = document.getElementById('status');
         const btnSimpan = document.getElementById('btn-simpan');
 
-        // Handle Camera Capture
-        document.getElementById('camera-uploader').addEventListener('change', function(e) {
-            handleImageUpload(e);
-        });
+        // Fungsi membaca fail gambar yang dipilih atau diambil
+        document.getElementById('camera-input').addEventListener('change', processUploadedFile);
+        document.getElementById('gallery-input').addEventListener('change', processUploadedFile);
 
-        // Handle Gallery Selection
-        document.getElementById('gallery-uploader').addEventListener('change', function(e) {
-            handleImageUpload(e);
-        });
-
-        function handleImageUpload(e) {
+        function processUploadedFile(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusDiv.innerHTML = "<p class='loading'>⏳ Processing image...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Memproses imej...</p>";
             btnSimpan.style.display = "none";
 
             const reader = new FileReader();
@@ -171,13 +182,13 @@
         }
 
         function runTesseractOCR(imageSource) {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Running OCR text extraction... Please wait.</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Menjalankan OCR untuk membaca teks... Sila tunggu.</p>";
             btnSimpan.style.display = "none";
 
             Tesseract.recognize(
                 imageSource, 'eng', { logger: m => console.log(m) } 
             ).then(({ data: { text } }) => {
-                statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review and complete details below.</p>";
+                statusDiv.innerHTML = "<p class='success'>✅ Imbasan selesai! Sila semak dan lengkapkan butiran di bawah.</p>";
                 document.getElementById('out-raw').value = text;
 
                 const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/);
@@ -201,7 +212,7 @@
                 btnSimpan.style.display = "block";
 
             }).catch(err => {
-                statusDiv.innerHTML = "<p style='color: red;'>❌ OCR Error: " + err + "</p>";
+                statusDiv.innerHTML = "<p style='color: red;'>❌ Ralat OCR: " + err + "</p>";
             });
         }
 
@@ -223,10 +234,10 @@
                 return;
             }
 
-            btnSimpan.innerText = "⏳ Saving to Database...";
+            btnSimpan.innerText = "⏳ Menyimpan ke Pangkalan Data...";
             database.ref('AlumniCards').push(finalData)
             .then(() => {
-                alert("✅ Data berjaya disimpan ke pangkalan data!");
+                alert("✅ Data berjaya disimpan!");
                 location.reload();
             })
             .catch((error) => {
