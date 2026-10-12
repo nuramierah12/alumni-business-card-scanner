@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alumni Data Dashboard</title>
+
+    <!-- Firebase Library -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-color: #f4f7f6;
+      }
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        color: #333;
+        border-bottom: 2px solid #008cba;
+        padding-bottom: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #008cba;
+        color: white;
+      }
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+
+      .btn-export {
+        background-color: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        float: right;
+        margin-bottom: 10px;
+      }
+      .btn-export:hover {
+        background-color: #218838;
+      }
+      .loading-text {
+        font-style: italic;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <button class="btn-export" onclick="exportTableToCSV('Alumni_Data.csv')">
+        📊 Export to Excel (CSV)
+      </button>
+      <h2>Alumni Database Dashboard</h2>
+
+      <table id="alumni-table">
+        <thead>
+          <tr>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Job Title</th>
+            <th>Company</th>
+            <th>Country</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Date Scanned</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr>
+            <td colspan="8" class="loading-text" style="text-align: center">
+              Loading data from database...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      // Your Firebase Configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyB2bVsX_rioyocFHUzZ4A-WQ5t7yPFuw_w",
+        authDomain: "alumni-scanner-9e82c.firebaseapp.com",
+        databaseURL:
+          "https://alumni-scanner-9e82c-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "alumni-scanner-9e82c",
+        storageBucket: "alumni-scanner-9e82c.firebasestorage.app",
+        messagingSenderId: "811368515827",
+        appId: "1:811368515827:web:a89c43de11fc995ec5cf86",
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+      const tableBody = document.getElementById("table-body");
+
+      // Fetch data from Firebase (Realtime)
+      database.ref("AlumniCards").on("value", function (snapshot) {
+        tableBody.innerHTML = ""; // Clear loading text
+
+        if (snapshot.exists()) {
+          snapshot.forEach(function (childSnapshot) {
+            const data = childSnapshot.val();
+
+            // Create new table row
+            const row = `<tr>
+                        <td>${data.first_name || "-"}</td>
+                        <td>${data.last_name || "-"}</td>
+                        <td>${data.job_title || "-"}</td>
+                        <td>${data.company || "-"}</td>
+                        <td>${data.country || "-"}</td>
+                        <td><a href="mailto:${data.email}">${data.email || "-"}</a></td>
+                        <td>${data.phone || "-"}</td>
+                        <td style="font-size:12px; color:gray;">${data.time_scanned || "-"}</td>
+                    </tr>`;
+
+            tableBody.innerHTML += row;
+          });
+        } else {
+          tableBody.innerHTML =
+            "<tr><td colspan='8' style='text-align:center;'>No alumni data found.</td></tr>";
+        }
+      });
+
+      // Function to download the table as a CSV file (Excel)
+      function exportTableToCSV(filename) {
+        const table = document.getElementById("alumni-table");
+        let csv = [];
+        for (let i = 0; i < table.rows.length; i++) {
+          let row = [],
+            cols = table.rows[i].querySelectorAll("td, th");
+
+          for (let j = 0; j < cols.length; j++) {
+            // Escape double quotes to prevent CSV formatting issues
+            let data = cols[j].innerText.replace(/"/g, '""');
+            row.push('"' + data + '"');
+          }
+          csv.push(row.join(","));
+        }
+
+        downloadCSV(csv.join("\n"), filename);
+      }
+
+      function downloadCSV(csv, filename) {
+        let csvFile;
+        let downloadLink;
+
+        csvFile = new Blob([csv], { type: "text/csv" });
+        downloadLink = document.createElement("a");
+        downloadLink.download = filename;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+      }
+    </script>
+  </body>
+</html>
