@@ -24,35 +24,9 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
         
-        .camera-container { position: relative; width: 100%; max-width: 500px; margin: auto; background: #000; border-radius: 8px; overflow: hidden; display: none; text-align: center; margin-top: 15px; }
-        #video-feed { width: 100%; height: auto; display: block; }
-        
-        .card-overlay-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 85%;
-            height: 38%;
-            border: 3px dashed #00ffcc;
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
-            border-radius: 6px;
-            pointer-events: none;
-        }
-        .overlay-text {
-            position: absolute;
-            top: 15px;
-            width: 100%;
-            color: #fff;
-            font-size: 13px;
-            text-shadow: 1px 1px 2px #000;
-            font-weight: bold;
-            z-index: 10;
-        }
-
-        .btn-action { background-color: #008CBA; color: white; padding: 12px; width: 100%; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 15px;}
+        .btn-action { background-color: #008CBA; color: white; padding: 14px; width: 100%; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 15px; text-align: center; display: block; box-sizing: border-box;}
         .btn-gallery { background-color: #6c757d; }
-        .btn-capture { background-color: #ff9800; margin: 15px auto; width: 80%; display: block; }
+        .btn-camera { background-color: #ff9800; }
         .btn-save { background-color: #4CAF50; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: none; cursor: pointer; margin-top: 20px;}
     </style>
 </head>
@@ -61,17 +35,13 @@
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
     
-    <button class="btn-action" id="btn-start-cam" onclick="startCamera()">📷 Open Camera (With Frame)</button>
-    <button class="btn-action btn-gallery" onclick="document.getElementById('gallery-uploader').click()">🖼️ Choose from Gallery</button>
-    
-    <input type="file" id="gallery-uploader" accept="image/*" style="display:none;">
+    <!-- Direct Native Camera Capture (Guaranteed to open phone camera) -->
+    <label for="camera-uploader" class="btn-action btn-camera">📸 Take Photo with Camera</label>
+    <input type="file" id="camera-uploader" accept="image/*" capture="environment" style="display:none;">
 
-    <div class="camera-container" id="cam-container">
-        <div class="overlay-text">Align card inside the frame lines</div>
-        <video id="video-feed" autoplay playsinline></video>
-        <div class="card-overlay-frame"></div>
-        <button class="btn-action btn-capture" onclick="captureCard()">📸 Capture Image</button>
-    </div>
+    <!-- Choose from Gallery -->
+    <button class="btn-action btn-gallery" onclick="document.getElementById('gallery-uploader').click()">🖼️ Choose from Gallery</button>
+    <input type="file" id="gallery-uploader" accept="image/*" style="display:none;">
 
     <canvas id="canvas" style="display:none;"></canvas>
     
@@ -145,52 +115,24 @@
         }
         const database = firebase.database();
 
-        const video = document.getElementById('video-feed');
-        const camContainer = document.getElementById('cam-container');
         const statusDiv = document.getElementById('status');
         const btnSimpan = document.getElementById('btn-simpan');
-        let mediaStream = null;
 
-        async function startCamera() {
-            try {
-                camContainer.style.display = "block";
-                statusDiv.innerHTML = "";
-                
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: "environment" } 
-                    });
-                    video.srcObject = mediaStream;
-                } else {
-                    alert("❌ Your browser does not support camera access via web.");
-                }
-            } catch (error) {
-                alert("❌ Cannot access camera. Please make sure permissions are allowed and you are using HTTPS. Error: " + error.message);
-                camContainer.style.display = "none";
-            }
-        }
+        // Handle Camera Capture
+        document.getElementById('camera-uploader').addEventListener('change', function(e) {
+            handleImageUpload(e);
+        });
 
-        function captureCard() {
-            const canvas = document.getElementById('canvas');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Handle Gallery Selection
+        document.getElementById('gallery-uploader').addEventListener('change', function(e) {
+            handleImageUpload(e);
+        });
 
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
-            camContainer.style.display = "none";
-
-            preprocessAndProcessOCR(canvas);
-        }
-
-        const galleryUploader = document.getElementById('gallery-uploader');
-        galleryUploader.addEventListener('change', function(e) {
+        function handleImageUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusDiv.innerHTML = "<p class='loading'>⏳ Processing image from gallery...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Processing image...</p>";
             btnSimpan.style.display = "none";
 
             const reader = new FileReader();
@@ -208,7 +150,7 @@
                     preprocessAndProcessOCR(canvas);
                 };
             };
-        });
+        }
 
         function preprocessAndProcessOCR(canvas) {
             const ctx = canvas.getContext('2d');
