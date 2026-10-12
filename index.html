@@ -24,7 +24,6 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
         
-        /* Gaya butang berbentuk label supaya sentuhan pengguna dikesan terus oleh sistem telefon */
         .btn-upload-box {
             display: block;
             width: 100%;
@@ -48,16 +47,16 @@
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
     
-    <!-- Butang Kamera Rasmi (HTML Label + Input Capture) -->
-    <label for="camera-input" class="btn-upload-box btn-camera">
-        📸 Ambil Gambar dengan Kamera
-    </label>
-    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
+    <!-- Camera Button -->
+    <button type="button" class="btn-upload-box btn-camera" onclick="document.getElementById('camera-input').click()">
+        📸 Take Photo with Camera
+    </button>
+    <input type="file" id="camera-input" accept="image/*" capture="camera" style="display: none;">
 
-    <!-- Butang Galeri Rasmi -->
-    <label for="gallery-input" class="btn-upload-box btn-gallery">
-        🖼️ Pilih dari Galeri
-    </label>
+    <!-- Gallery Button -->
+    <button type="button" class="btn-upload-box btn-gallery" onclick="document.getElementById('gallery-input').click()">
+        🖼️ Choose from Gallery
+    </button>
     <input type="file" id="gallery-input" accept="image/*" style="display: none;">
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -67,7 +66,7 @@
     <div id="output-box">
         
         <div class="alert-note">
-            <b>Admin Note:</b> Sila semak butiran di bawah. Tajuk (Dr./Mr.), nombor telefon, dan maklumat lain boleh disunting secara manual.
+            <b>Admin Note:</b> Please review the details below. Titles, phone numbers, and other fields can be edited manually.
         </div>
 
         <div class="form-group">
@@ -135,7 +134,6 @@
         const statusDiv = document.getElementById('status');
         const btnSimpan = document.getElementById('btn-simpan');
 
-        // Fungsi membaca fail gambar yang dipilih atau diambil
         document.getElementById('camera-input').addEventListener('change', processUploadedFile);
         document.getElementById('gallery-input').addEventListener('change', processUploadedFile);
 
@@ -143,7 +141,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            statusDiv.innerHTML = "<p class='loading'>⏳ Memproses imej...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Processing image...</p>";
             btnSimpan.style.display = "none";
 
             const reader = new FileReader();
@@ -182,13 +180,13 @@
         }
 
         function runTesseractOCR(imageSource) {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Menjalankan OCR untuk membaca teks... Sila tunggu.</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Running OCR text extraction... Please wait.</p>";
             btnSimpan.style.display = "none";
 
             Tesseract.recognize(
                 imageSource, 'eng', { logger: m => console.log(m) } 
             ).then(({ data: { text } }) => {
-                statusDiv.innerHTML = "<p class='success'>✅ Imbasan selesai! Sila semak dan lengkapkan butiran di bawah.</p>";
+                statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review and complete details below.</p>";
                 document.getElementById('out-raw').value = text;
 
                 const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/);
@@ -212,7 +210,7 @@
                 btnSimpan.style.display = "block";
 
             }).catch(err => {
-                statusDiv.innerHTML = "<p style='color: red;'>❌ Ralat OCR: " + err + "</p>";
+                statusDiv.innerHTML = "<p style='color: red;'>❌ OCR Error: " + err + "</p>";
             });
         }
 
@@ -230,18 +228,18 @@
             };
 
             if (!finalData.first_name || !finalData.job_title || !finalData.company || !finalData.email) {
-                alert("❌ Sila lengkapkan ruangan Nama, Jawatan, Syarikat, dan E-mel.");
+                alert("❌ Please fill in Name, Job Title, Company, and Email fields.");
                 return;
             }
 
-            btnSimpan.innerText = "⏳ Menyimpan ke Pangkalan Data...";
+            btnSimpan.innerText = "⏳ Saving to Database...";
             database.ref('AlumniCards').push(finalData)
             .then(() => {
-                alert("✅ Data berjaya disimpan!");
+                alert("✅ Record successfully saved!");
                 location.reload();
             })
             .catch((error) => {
-                alert("❌ Gagal menyimpan: " + error);
+                alert("❌ Failed to save: " + error);
                 btnSimpan.innerText = "💾 Save to Database";
             });
         });
