@@ -1,430 +1,297 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alumni Business Card Scanner</title>
-
+    
     <!-- Tesseract OCR Library -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
+    
     <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        padding: 20px;
-        max-width: 550px;
-        margin: auto;
-        background-color: #f9f9f9;
-      }
-      .form-group {
-        margin-bottom: 15px;
-      }
-      label {
-        font-weight: bold;
-        display: block;
-        margin-bottom: 5px;
-        font-size: 14px;
-      }
-      input[type="text"],
-      input[type="email"],
-      textarea {
-        width: 100%;
-        padding: 10px;
-        box-sizing: border-box;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background: #fff;
-      }
-      #output-box {
-        margin-top: 20px;
-        padding: 15px;
-        background: #fff;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      }
-      .loading {
-        color: blue;
-        font-style: italic;
-        font-weight: bold;
-      }
-      .success {
-        color: green;
-        font-weight: bold;
-      }
-      .alert-note {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #ffeeba;
-        font-size: 13px;
-        margin-bottom: 15px;
-      }
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 550px; margin: auto; background-color: #f9f9f9; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
+        input[type="text"], input[type="email"], textarea { 
+            width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; background: #fff;
+        }
+        #output-box { margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .loading { color: blue; font-style: italic; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+        .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
+        
+        .camera-container { position: relative; width: 100%; max-width: 500px; margin: auto; background: #000; border-radius: 8px; overflow: hidden; display: none; text-align: center; margin-top: 15px; }
+        #video-feed { width: 100%; height: auto; display: block; }
+        
+        .card-overlay-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            height: 38%;
+            border: 3px dashed #00ffcc;
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+            border-radius: 6px;
+            pointer-events: none;
+        }
+        .overlay-text {
+            position: absolute;
+            top: 15px;
+            width: 100%;
+            color: #fff;
+            font-size: 13px;
+            text-shadow: 1px 1px 2px #000;
+            font-weight: bold;
+            z-index: 10;
+        }
 
-      .camera-container {
-        position: relative;
-        width: 100%;
-        max-width: 500px;
-        margin: auto;
-        background: #000;
-        border-radius: 8px;
-        overflow: hidden;
-        display: none;
-        text-align: center;
-      }
-      #video-feed {
-        width: 100%;
-        height: auto;
-        display: block;
-      }
-
-      .card-overlay-frame {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 85%;
-        height: 38%;
-        border: 3px dashed #00ffcc;
-        box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
-        border-radius: 6px;
-        pointer-events: none;
-      }
-      .overlay-text {
-        position: absolute;
-        top: 15px;
-        width: 100%;
-        color: #fff;
-        font-size: 13px;
-        text-shadow: 1px 1px 2px #000;
-        font-weight: bold;
-        z-index: 10;
-      }
-
-      .btn-action {
-        background-color: #008cba;
-        color: white;
-        padding: 12px;
-        width: 100%;
-        border: none;
-        border-radius: 5px;
-        font-weight: bold;
-        cursor: pointer;
-        margin-top: 10px;
-        font-size: 15px;
-      }
-      .btn-gallery {
-        background-color: #6c757d;
-      }
-      .btn-capture {
-        background-color: #ff9800;
-        margin-bottom: 15px;
-      }
-      .btn-save {
-        background-color: #4caf50;
-        color: white;
-        padding: 15px;
-        width: 100%;
-        border: none;
-        border-radius: 5px;
-        font-weight: bold;
-        font-size: 16px;
-        display: none;
-        cursor: pointer;
-        margin-top: 20px;
-      }
+        .btn-action { background-color: #008CBA; color: white; padding: 12px; width: 100%; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 15px;}
+        .btn-gallery { background-color: #6c757d; }
+        .btn-capture { background-color: #ff9800; margin: 15px auto; width: 80%; display: block; }
+        .btn-save { background-color: #4CAF50; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: none; cursor: pointer; margin-top: 20px;}
     </style>
-  </head>
-  <body>
+</head>
+<body>
+
     <h2>Alumni Business Card Scanner</h2>
-    <p style="font-size: 14px; color: #555">
-      Scan business cards and review details quickly.
-    </p>
-
-    <button class="btn-action" id="btn-start-cam" onclick="startCamera()">
-      📷 Open Camera (With Frame)
-    </button>
-    <button
-      class="btn-action btn-gallery"
-      onclick="document.getElementById('gallery-uploader').click()"
-    >
-      🖼️ Choose from Gallery
-    </button>
-
-    <input
-      type="file"
-      id="gallery-uploader"
-      accept="image/*"
-      style="display: none"
-    />
+    <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
+    
+    <button class="btn-action" id="btn-start-cam" onclick="startCamera()">📷 Open Camera (With Frame)</button>
+    <button class="btn-action btn-gallery" onclick="document.getElementById('gallery-uploader').click()">🖼️ Choose from Gallery</button>
+    
+    <input type="file" id="gallery-uploader" accept="image/*" style="display:none;">
 
     <div class="camera-container" id="cam-container">
-      <div class="overlay-text">Align card inside the frame lines</div>
-      <video id="video-feed" autoplay playsinline></video>
-      <div class="card-overlay-frame"></div>
-      <button class="btn-action btn-capture" onclick="captureCard()">
-        📸 Capture Image
-      </button>
+        <div class="overlay-text">Align card inside the frame lines</div>
+        <video id="video-feed" autoplay playsinline></video>
+        <div class="card-overlay-frame"></div>
+        <button class="btn-action btn-capture" onclick="captureCard()">📸 Capture Image</button>
     </div>
 
-    <canvas id="canvas" style="display: none"></canvas>
-
-    <div id="status" style="margin-top: 15px"></div>
-
+    <canvas id="canvas" style="display:none;"></canvas>
+    
+    <div id="status" style="margin-top: 15px;"></div>
+    
     <div id="output-box">
-      <div class="alert-note">
-        <b>Admin Note:</b> Please review the details below. Titles (Dr./Mr.),
-        phone numbers, and other fields can be edited manually.
-      </div>
+        
+        <div class="alert-note">
+            <b>Admin Note:</b> Please review the details below. Titles (Dr./Mr.), phone numbers, and other fields can be edited manually.
+        </div>
 
-      <div class="form-group">
-        <label>Title (e.g., Dr. / Mr. / Ts.):</label>
-        <input type="text" id="in-title" placeholder="E.g., Dr." />
-      </div>
+        <div class="form-group">
+            <label>Title (e.g., Dr. / Mr. / Ts.):</label>
+            <input type="text" id="in-title" placeholder="E.g., Dr.">
+        </div>
 
-      <div class="form-group">
-        <label>First Name:</label>
-        <input type="text" id="in-firstname" placeholder="E.g., Khair Razlan" />
-      </div>
+        <div class="form-group">
+            <label>First Name:</label>
+            <input type="text" id="in-firstname" placeholder="E.g., Khair Razlan">
+        </div>
 
-      <div class="form-group">
-        <label>Last Name (Surname / Father's Name):</label>
-        <input type="text" id="in-lastname" placeholder="E.g., Othman" />
-      </div>
+        <div class="form-group">
+            <label>Last Name (Surname / Father's Name):</label>
+            <input type="text" id="in-lastname" placeholder="E.g., Othman">
+        </div>
 
-      <div class="form-group">
-        <label>Job Title:</label>
-        <input type="text" id="in-job" placeholder="E.g., Senior Lecturer" />
-      </div>
+        <div class="form-group">
+            <label>Job Title:</label>
+            <input type="text" id="in-job" placeholder="E.g., Senior Lecturer">
+        </div>
 
-      <div class="form-group">
-        <label>Company / University Name:</label>
-        <input
-          type="text"
-          id="in-company"
-          placeholder="E.g., Multimedia University"
-        />
-      </div>
+        <div class="form-group">
+            <label>Company / University Name:</label>
+            <input type="text" id="in-company" placeholder="E.g., Multimedia University">
+        </div>
+        
+        <div class="form-group">
+            <label>Country or Territory:</label>
+            <input type="text" id="in-country" placeholder="E.g., Malaysia" value="Malaysia">
+        </div>
 
-      <div class="form-group">
-        <label>Country or Territory:</label>
-        <input
-          type="text"
-          id="in-country"
-          placeholder="E.g., Malaysia"
-          value="Malaysia"
-        />
-      </div>
+        <div class="form-group">
+            <label>Company Email:</label>
+            <input type="email" id="in-email" placeholder="E.g., khair@mmu.edu.my">
+        </div>
 
-      <div class="form-group">
-        <label>Company Email:</label>
-        <input
-          type="email"
-          id="in-email"
-          placeholder="E.g., khair@mmu.edu.my"
-        />
-      </div>
+        <div class="form-group">
+            <label>Phone Number (Optional):</label>
+            <input type="text" id="in-phone" placeholder="E.g., +60123456789">
+        </div>
+        
+        <p style="font-size:12px; color:gray;">Raw OCR Text Output:</p>
+        <textarea id="out-raw" rows="3" disabled></textarea>
 
-      <div class="form-group">
-        <label>Phone Number (Optional):</label>
-        <input type="text" id="in-phone" placeholder="E.g., +60123456789" />
-      </div>
-
-      <p style="font-size: 12px; color: gray">Raw OCR Text Output:</p>
-      <textarea id="out-raw" rows="3" disabled></textarea>
-
-      <button id="btn-simpan" class="btn-save">💾 Save to Database</button>
+        <button id="btn-simpan" class="btn-save">💾 Save to Database</button>
     </div>
 
     <script>
-      const firebaseConfig = {
-        apiKey: "AIzaSyB2bVsX_rioyocFHUzZ4A-WQ5t7yPFuw_w",
-        authDomain: "alumni-scanner-9e82c.firebaseapp.com",
-        databaseURL:
-          "https://alumni-scanner-9e82c-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "alumni-scanner-9e82c",
-        storageBucket: "alumni-scanner-9e82c.firebasestorage.app",
-        messagingSenderId: "811368515827",
-        appId: "1:811368515827:web:a89c43de11fc995ec5cf86",
-      };
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2bVsX_rioyocFHUzZ4A-WQ5t7yPFuw_w",
+            authDomain: "alumni-scanner-9e82c.firebaseapp.com",
+            databaseURL: "https://alumni-scanner-9e82c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "alumni-scanner-9e82c",
+            storageBucket: "alumni-scanner-9e82c.firebasestorage.app",
+            messagingSenderId: "811368515827",
+            appId: "1:811368515827:web:a89c43de11fc995ec5cf86"
+        };
 
-      firebase.initializeApp(firebaseConfig);
-      const database = firebase.database();
-
-      const video = document.getElementById("video-feed");
-      const camContainer = document.getElementById("cam-container");
-      const statusDiv = document.getElementById("status");
-      const btnSimpan = document.getElementById("btn-simpan");
-      let mediaStream = null;
-
-      async function startCamera() {
-        try {
-          camContainer.style.display = "block";
-          statusDiv.innerHTML = "";
-          mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
-          });
-          video.srcObject = mediaStream;
-        } catch (error) {
-          alert("❌ Cannot access camera. Please allow permissions.");
-          camContainer.style.display = "none";
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
-      }
+        const database = firebase.database();
 
-      function captureCard() {
-        const canvas = document.getElementById("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const video = document.getElementById('video-feed');
+        const camContainer = document.getElementById('cam-container');
+        const statusDiv = document.getElementById('status');
+        const btnSimpan = document.getElementById('btn-simpan');
+        let mediaStream = null;
 
-        if (mediaStream) {
-          mediaStream.getTracks().forEach((track) => track.stop());
+        async function startCamera() {
+            try {
+                camContainer.style.display = "block";
+                statusDiv.innerHTML = "";
+                
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: "environment" } 
+                    });
+                    video.srcObject = mediaStream;
+                } else {
+                    alert("❌ Your browser does not support camera access via web.");
+                }
+            } catch (error) {
+                alert("❌ Cannot access camera. Please make sure permissions are allowed and you are using HTTPS. Error: " + error.message);
+                camContainer.style.display = "none";
+            }
         }
-        camContainer.style.display = "none";
 
-        preprocessAndProcessOCR(canvas);
-      }
+        function captureCard() {
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const galleryUploader = document.getElementById("gallery-uploader");
-      galleryUploader.addEventListener("change", function (e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        statusDiv.innerHTML = "<p class='loading'>⏳ Processing image...</p>";
-        btnSimpan.style.display = "none";
-
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function (event) {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = function () {
-            const canvas = document.getElementById("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            camContainer.style.display = "none";
 
             preprocessAndProcessOCR(canvas);
-          };
-        };
-      });
-
-      function preprocessAndProcessOCR(canvas) {
-        const ctx = canvas.getContext("2d");
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          let newValue = avg < 140 ? 0 : 255;
-          data[i] = newValue;
-          data[i + 1] = newValue;
-          data[i + 2] = newValue;
         }
-        ctx.putImageData(imgData, 0, 0);
 
-        const processedImageURL = canvas.toDataURL("image/jpeg", 0.9);
-        runTesseractOCR(processedImageURL);
-      }
+        const galleryUploader = document.getElementById('gallery-uploader');
+        galleryUploader.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-      function runTesseractOCR(imageSource) {
-        statusDiv.innerHTML =
-          "<p class='loading'>⏳ Running OCR text extraction... Please wait.</p>";
-        btnSimpan.style.display = "none";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Processing image from gallery...</p>";
+            btnSimpan.style.display = "none";
 
-        Tesseract.recognize(imageSource, "eng", {
-          logger: (m) => console.log(m),
-        })
-          .then(({ data: { text } }) => {
-            statusDiv.innerHTML =
-              "<p class='success'>✅ Scan Complete! Review and complete details below.</p>";
-            document.getElementById("out-raw").value = text;
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    preprocessAndProcessOCR(canvas);
+                };
+            };
+        });
 
-            const emailMatch = text.match(
-              /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/,
-            );
-            document.getElementById("in-email").value = emailMatch
-              ? emailMatch[0]
-              : "";
+        function preprocessAndProcessOCR(canvas) {
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
 
-            const phoneMatch = text.match(
-              /(\+?[0-9]{1,3}[-.\s]?[0-9]{2,4}[-.\s]?[0-9]{4,8})/,
-            );
-            document.getElementById("in-phone").value = phoneMatch
-              ? phoneMatch[0].trim()
-              : "";
+            for (let i = 0; i < data.length; i += 4) {
+                let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                let newValue = avg < 140 ? 0 : 255; 
+                data[i]     = newValue;
+                data[i + 1] = newValue;
+                data[i + 2] = newValue;
+            }
+            ctx.putImageData(imgData, 0, 0);
 
-            const lines = text
-              .split("\n")
-              .filter((line) => line.trim().length > 0);
-            if (lines.length > 0)
-              document.getElementById("in-company").value = lines[0];
+            const processedImageURL = canvas.toDataURL('image/jpeg', 0.9);
+            runTesseractOCR(processedImageURL);
+        }
 
-            if (lines.length > 1) {
-              let fullName = lines[1].trim();
-              let nameParts = fullName.split(" ");
-              document.getElementById("in-firstname").value =
-                nameParts[0] || "";
-              document.getElementById("in-lastname").value =
-                nameParts.slice(1).join(" ") || "";
+        function runTesseractOCR(imageSource) {
+            statusDiv.innerHTML = "<p class='loading'>⏳ Running OCR text extraction... Please wait.</p>";
+            btnSimpan.style.display = "none";
+
+            Tesseract.recognize(
+                imageSource, 'eng', { logger: m => console.log(m) } 
+            ).then(({ data: { text } }) => {
+                statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review and complete details below.</p>";
+                document.getElementById('out-raw').value = text;
+
+                const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/);
+                document.getElementById('in-email').value = emailMatch ? emailMatch[0] : "";
+
+                const phoneMatch = text.match(/(\+?[0-9]{1,3}[-.\s]?[0-9]{2,4}[-.\s]?[0-9]{4,8})/);
+                document.getElementById('in-phone').value = phoneMatch ? phoneMatch[0].trim() : "";
+
+                const lines = text.split('\n').filter(line => line.trim().length > 0);
+                if (lines.length > 0) document.getElementById('in-company').value = lines[0]; 
+                
+                if (lines.length > 1) {
+                    let fullName = lines[1].trim();
+                    let nameParts = fullName.split(' ');
+                    document.getElementById('in-firstname').value = nameParts[0] || ""; 
+                    document.getElementById('in-lastname').value = nameParts.slice(1).join(' ') || ""; 
+                }
+
+                if (lines.length > 2) document.getElementById('in-job').value = lines[2]; 
+
+                btnSimpan.style.display = "block";
+
+            }).catch(err => {
+                statusDiv.innerHTML = "<p style='color: red;'>❌ OCR Error: " + err + "</p>";
+            });
+        }
+
+        btnSimpan.addEventListener('click', function() {
+            const finalData = {
+                title: document.getElementById('in-title').value.trim(),
+                first_name: document.getElementById('in-firstname').value.trim(),
+                last_name: document.getElementById('in-lastname').value.trim(),
+                job_title: document.getElementById('in-job').value.trim(),
+                company: document.getElementById('in-company').value.trim(),
+                country: document.getElementById('in-country').value.trim(),
+                email: document.getElementById('in-email').value.trim().toLowerCase(),
+                phone: document.getElementById('in-phone').value.trim(), 
+                time_scanned: new Date().toLocaleString()
+            };
+
+            if (!finalData.first_name || !finalData.job_title || !finalData.company || !finalData.email) {
+                alert("❌ Sila lengkapkan ruangan Nama, Jawatan, Syarikat, dan E-mel.");
+                return;
             }
 
-            if (lines.length > 2)
-              document.getElementById("in-job").value = lines[2];
-
-            btnSimpan.style.display = "block";
-          })
-          .catch((err) => {
-            statusDiv.innerHTML =
-              "<p style='color: red;'>❌ OCR Error: " + err + "</p>";
-          });
-      }
-
-      btnSimpan.addEventListener("click", function () {
-        const finalData = {
-          title: document.getElementById("in-title").value.trim(),
-          first_name: document.getElementById("in-firstname").value.trim(),
-          last_name: document.getElementById("in-lastname").value.trim(),
-          job_title: document.getElementById("in-job").value.trim(),
-          company: document.getElementById("in-company").value.trim(),
-          country: document.getElementById("in-country").value.trim(),
-          email: document.getElementById("in-email").value.trim().toLowerCase(),
-          phone: document.getElementById("in-phone").value.trim(),
-          time_scanned: new Date().toLocaleString(),
-        };
-
-        if (
-          !finalData.first_name ||
-          !finalData.job_title ||
-          !finalData.company ||
-          !finalData.email
-        ) {
-          alert(
-            "❌ Please fill in all required fields (Name, Job Title, Company, and Email).",
-          );
-          return;
-        }
-
-        btnSimpan.innerText = "⏳ Saving to Database...";
-        database
-          .ref("AlumniCards")
-          .push(finalData)
-          .then(() => {
-            alert("✅ Record successfully saved!");
-            location.reload();
-          })
-          .catch((error) => {
-            alert("❌ Failed to save: " + error);
-            btnSimpan.innerText = "💾 Save to Database";
-          });
-      });
+            btnSimpan.innerText = "⏳ Saving to Database...";
+            database.ref('AlumniCards').push(finalData)
+            .then(() => {
+                alert("✅ Data berjaya disimpan ke pangkalan data!");
+                location.reload();
+            })
+            .catch((error) => {
+                alert("❌ Gagal menyimpan: " + error);
+                btnSimpan.innerText = "💾 Save to Database";
+            });
+        });
     </script>
-  </body>
+</body>
 </html>
