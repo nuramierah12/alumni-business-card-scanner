@@ -24,7 +24,7 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
         
-        .btn-upload-box {
+        .upload-btn {
             display: block;
             width: 100%;
             padding: 14px;
@@ -47,16 +47,16 @@
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
     
-    <!-- Camera Button -->
-    <button type="button" class="btn-upload-box btn-camera" onclick="document.getElementById('camera-input').click()">
+    <!-- Direct Camera Input (Forces Camera on mobile) -->
+    <label for="camera-input" class="upload-btn btn-camera">
         📸 Take Photo with Camera
-    </button>
-    <input type="file" id="camera-input" accept="image/*" capture="camera" style="display: none;">
+    </label>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
 
-    <!-- Gallery Button -->
-    <button type="button" class="btn-upload-box btn-gallery" onclick="document.getElementById('gallery-input').click()">
+    <!-- Direct Gallery Input -->
+    <label for="gallery-input" class="upload-btn btn-gallery">
         🖼️ Choose from Gallery
-    </button>
+    </label>
     <input type="file" id="gallery-input" accept="image/*" style="display: none;">
 
     <canvas id="canvas" style="display:none;"></canvas>
