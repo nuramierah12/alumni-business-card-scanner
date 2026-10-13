@@ -28,7 +28,6 @@
         #camera-container {
             position: relative;
             width: 100%;
-            max-height: 350px;
             background: #000;
             border-radius: 8px;
             overflow: hidden;
@@ -188,28 +187,32 @@
         
         let mediaStream = null;
 
-        // Start Live Camera Viewfinder
+        // Start Live Camera Viewfinder with HD Resolution Support
         btnStartCam.addEventListener('click', async function() {
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
                     audio: false
                 });
                 videoStream.srcObject = mediaStream;
                 cameraContainer.style.display = 'block';
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Position the card inside the frame.</p>";
+                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Align card and ensure good lighting.</p>";
             } catch (err) {
                 alert("❌ Camera access denied or not supported: " + err);
             }
         });
 
-        // Capture Photo from Live Viewfinder Stream
+        // Capture Photo from Live Viewfinder Stream with Maximum Quality
         btnCaptureCam.addEventListener('click', function() {
             const canvas = document.getElementById('canvas');
-            canvas.width = videoStream.videoWidth;
-            canvas.height = videoStream.videoHeight;
+            canvas.width = videoStream.videoWidth || 1280;
+            canvas.height = videoStream.videoHeight || 720;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
@@ -221,7 +224,7 @@
             btnCaptureCam.style.display = 'none';
             btnStartCam.style.display = 'block';
 
-            const capturedImageURL = canvas.toDataURL('image/jpeg', 0.9);
+            const capturedImageURL = canvas.toDataURL('image/jpeg', 0.95);
             runTesseractOCR(capturedImageURL);
         });
 
@@ -242,7 +245,7 @@
                     const canvas = document.getElementById('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    let maxWidth = 1000;
+                    let maxWidth = 1200;
                     let scale = maxWidth / img.width;
                     if (scale > 1) scale = 1;
 
@@ -250,7 +253,7 @@
                     canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    const resizedImageURL = canvas.toDataURL('image/jpeg', 0.9);
+                    const resizedImageURL = canvas.toDataURL('image/jpeg', 0.95);
                     runTesseractOCR(resizedImageURL);
                 };
             };
@@ -326,7 +329,7 @@
                 country: document.getElementById('in-country').value.trim(),
                 email: document.getElementById('in-email').value.trim().toLowerCase(),
                 phone: document.getElementById('in-phone').value.trim(), 
-                time_scanned: new Date().toLocaleString()
+                    time_scanned: new Date().toLocaleString()
             };
 
             // Validation: All fields required except phone number
