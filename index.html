@@ -13,6 +13,38 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
+        /* Top Navigation Bar */
+        .navbar {
+            background-color: #001f3f;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: -20px -20px 20px -20px;
+        }
+        .nav-brand {
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+        }
+        .nav-brand span {
+            color: #D4AF37;
+        }
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+        }
+        .nav-links a:hover {
+            background: #D4AF37;
+            color: #001f3f;
+        }
+
         body { font-family: Arial, sans-serif; padding: 20px; max-width: 550px; margin: auto; background-color: #f9f9f9; }
         .form-group { margin-bottom: 15px; }
         label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
@@ -39,7 +71,6 @@
             height: auto;
             display: block;
         }
-        /* Card Overlay Guide Frame - Adjusted to real business card landscape ratio */
         .viewfinder-overlay {
             position: absolute;
             top: 35%;
@@ -84,6 +115,14 @@
     </style>
 </head>
 <body>
+
+    <!-- TOP NAVBAR WITH ADMIN LINK -->
+    <div class="navbar">
+        <div class="nav-brand">Alumni<span>Scanner</span></div>
+        <div class="nav-links">
+            <a href="dashboard.html">⚙️ Admin Portal</a>
+        </div>
+    </div>
 
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
@@ -187,7 +226,6 @@
         
         let mediaStream = null;
 
-        // Start Live Camera Viewfinder with HD Resolution Support
         btnStartCam.addEventListener('click', async function() {
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -208,7 +246,6 @@
             }
         });
 
-        // Capture Photo from Live Viewfinder Stream with Maximum Quality
         btnCaptureCam.addEventListener('click', function() {
             const canvas = document.getElementById('canvas');
             canvas.width = videoStream.videoWidth || 1280;
@@ -216,7 +253,6 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
-            // Stop camera stream after capture
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
             }
@@ -228,7 +264,6 @@
             runTesseractOCR(capturedImageURL);
         });
 
-        // Gallery Upload Handler
         document.getElementById('gallery-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -272,15 +307,12 @@
                 statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review details below.</p>";
                 document.getElementById('out-raw').value = text;
 
-                // Extract Email
                 const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
                 document.getElementById('in-email').value = emailMatch ? emailMatch[0] : "";
 
-                // Extract Phone Number (Optional)
                 const phoneMatch = text.match(/(\+?60|01)[0-9-\s]{8,10}/);
                 document.getElementById('in-phone').value = phoneMatch ? phoneMatch[0].trim() : "";
 
-                // Auto-text lines parsing
                 const lines = text.split('\n').filter(line => line.trim().length > 0);
                 if (lines.length > 0) document.getElementById('in-company').value = lines[0]; 
                 
@@ -300,7 +332,6 @@
 
                     document.getElementById('in-title').value = detectedTitle;
 
-                    // Filter out "Bin", "Binti", "Bte" and extract names
                     let nameParts = rawNameLine.split(' ').filter(part => {
                         let p = part.toLowerCase();
                         return p !== 'binti' && p !== 'bin' && p !== 'bte';
@@ -325,30 +356,3 @@
                 first_name: document.getElementById('in-firstname').value.trim(),
                 last_name: document.getElementById('in-lastname').value.trim(),
                 job_title: document.getElementById('in-job').value.trim(),
-                company: document.getElementById('in-company').value.trim(),
-                country: document.getElementById('in-country').value.trim(),
-                email: document.getElementById('in-email').value.trim().toLowerCase(),
-                phone: document.getElementById('in-phone').value.trim(), 
-                time_scanned: new Date().toLocaleString()
-            };
-
-            // Validation: All fields required except phone number
-            if (!finalData.title || !finalData.first_name || !finalData.last_name || !finalData.job_title || !finalData.company || !finalData.country || !finalData.email) {
-                alert("⚠️ Please fill in all required fields! Only the phone number is optional.");
-                return;
-            }
-
-            btnSimpan.innerText = "⏳ Saving to Database...";
-            database.ref('AlumniCards').push(finalData)
-            .then(() => {
-                alert("✅ Record successfully saved!");
-                location.reload();
-            })
-            .catch((error) => {
-                alert("❌ Failed to save: " + error);
-                btnSimpan.innerText = "💾 Save to Database";
-            });
-        });
-    </script>
-</body>
-</html>
