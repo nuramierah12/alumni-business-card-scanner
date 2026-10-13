@@ -30,19 +30,11 @@
         .nav-left-section {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
-        /* Container box for local logo image */
-        .logo-container {
-            background: #ffffff;
-            padding: 4px 10px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        /* Tanpa kotak putih, logo terus terletak di atas background biru navbar */
         .mmu-logo {
-            height: 32px;
+            height: 38px;
             width: auto;
             display: block;
         }
@@ -248,12 +240,10 @@
 </head>
 <body>
 
-    <!-- TOP NAVBAR WITH LOCAL MMU LOGO FILE -->
+    <!-- TOP NAVBAR WITHOUT WHITE BOX -->
     <div class="navbar">
         <div class="nav-left-section">
-            <div class="logo-container">
-                <img src="mmu-logo.png" alt="MMU Logo" class="mmu-logo">
-            </div>
+            <img src="mmu-logo.png" alt="MMU Logo" class="mmu-logo">
             <div class="nav-brand">Alumni<span>Scanner</span>.</div>
         </div>
         <div class="nav-links">
