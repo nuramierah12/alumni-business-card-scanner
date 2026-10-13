@@ -30,13 +30,15 @@
         .nav-left-section {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
         }
-        /* Tanpa kotak putih, logo terus terletak di atas background biru navbar */
+        /* Logo blend dengan background biru navbar dan bertukar warna putih bersih */
         .mmu-logo {
-            height: 38px;
+            height: 35px;
             width: auto;
             display: block;
+            mix-blend-mode: multiply;
+            filter: brightness(0) invert(1);
         }
         .nav-brand {
             font-size: 18px;
@@ -240,7 +242,7 @@
 </head>
 <body>
 
-    <!-- TOP NAVBAR WITHOUT WHITE BOX -->
+    <!-- TOP NAVBAR -->
     <div class="navbar">
         <div class="nav-left-section">
             <img src="mmu-logo.png" alt="MMU Logo" class="mmu-logo">
