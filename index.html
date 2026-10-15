@@ -5,45 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alumni Business Card Scanner</title>
     
-    <!-- Tesseract OCR Library -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    
-    <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        /* Top Navigation Bar */
         .navbar {
-            background-color: #001f3f;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: -20px -20px 20px -20px;
+            background-color: #001f3f; color: white; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center; margin: -20px -20px 20px -20px;
         }
-        .nav-brand {
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-        }
-        .nav-brand span {
-            color: #D4AF37;
-        }
+        .nav-brand { font-size: 16px; font-weight: bold; color: white; }
+        .nav-brand span { color: #D4AF37; }
         .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            padding: 6px 12px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 4px;
+            color: white; text-decoration: none; font-size: 13px; font-weight: 500;
+            padding: 6px 12px; background: rgba(255,255,255,0.15); border-radius: 4px;
         }
-        .nav-links a:hover {
-            background: #D4AF37;
-            color: #001f3f;
-        }
+        .nav-links a:hover { background: #D4AF37; color: #001f3f; }
 
         body { font-family: Arial, sans-serif; padding: 20px; max-width: 550px; margin: auto; background-color: #f9f9f9; }
         .form-group { margin-bottom: 15px; }
@@ -54,59 +31,20 @@
         #output-box { margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .loading { color: blue; font-style: italic; font-weight: bold; }
         .success { color: green; font-weight: bold; }
-        .alert-note { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 13px; margin-bottom: 15px; }
+        .alert-note { background-color: #e2f0d9; color: #385723; padding: 10px; border-radius: 5px; border: 1px solid #c8e1b7; font-size: 13px; margin-bottom: 15px; }
         
-        /* Viewfinder Live Camera Styles */
-        #camera-container {
-            position: relative;
-            width: 100%;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            display: none;
-            margin-bottom: 15px;
-        }
-        #video-stream {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
+        #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 15px; }
+        #video-stream { width: 100%; height: auto; display: block; }
         .viewfinder-overlay {
-            position: absolute;
-            top: 35%;
-            left: 10%;
-            width: 80%;
-            height: 30%;
-            border: 2px dashed #00ffcc;
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
-            pointer-events: none;
-            box-sizing: border-box;
-            border-radius: 6px;
+            position: absolute; top: 35%; left: 10%; width: 80%; height: 30%;
+            border: 2px dashed #00ffcc; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
+            pointer-events: none; box-sizing: border-box; border-radius: 6px;
         }
-        .viewfinder-text {
-            position: absolute;
-            top: 5px;
-            width: 100%;
-            text-align: center;
-            color: #fff;
-            font-size: 12px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 4px 0;
-        }
+        .viewfinder-text { position: absolute; top: 5px; width: 100%; text-align: center; color: #fff; font-size: 12px; background: rgba(0, 0, 0, 0.6); padding: 4px 0; }
 
         .upload-btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            color: white;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 15px;
-            text-align: center;
-            cursor: pointer;
-            margin-top: 10px;
-            box-sizing: border-box;
-            border: none;
+            display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
+            font-weight: bold; font-size: 15px; text-align: center; cursor: pointer; margin-top: 10px; box-sizing: border-box; border: none;
         }
         .btn-camera { background-color: #008CBA; }
         .btn-capture { background-color: #ff9800; margin-top: 5px; display: none; }
@@ -116,7 +54,6 @@
 </head>
 <body>
 
-    <!-- TOP NAVBAR WITH ADMIN LINK -->
     <div class="navbar">
         <div class="nav-brand">Alumni<span>Scanner</span></div>
         <div class="nav-links">
@@ -127,7 +64,6 @@
     <h2>Alumni Business Card Scanner</h2>
     <p style="font-size: 14px; color: #555;">Scan business cards and review details quickly.</p>
     
-    <!-- Live Camera Viewfinder Container -->
     <button type="button" class="upload-btn btn-camera" id="btn-start-cam">📸 Open Live Camera Viewfinder</button>
     
     <div id="camera-container">
@@ -138,7 +74,6 @@
     </div>
     <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
 
-    <!-- Choose from Gallery Button -->
     <label for="gallery-input" class="upload-btn btn-gallery">
         🖼️ Choose from Gallery
     </label>
@@ -149,53 +84,52 @@
     <div id="status" style="margin-top: 15px;"></div>
     
     <div id="output-box">
-        
         <div class="alert-note">
-            <b>Admin Note:</b> Please fill in all fields below. Phone number is optional, but other fields are required before saving.
+            <b>System Note:</b> Auto-focus and image contrast enhancement are active. Review parsed details before saving.
         </div>
 
         <div class="form-group">
-            <label>Title (e.g., Dr. / Mr. / Ts.):</label>
-            <input type="text" id="in-title" placeholder="E.g., Dr.">
+            <label>Title (e.g., Dr. / Mr. / Ts. / Ir.):</label>
+            <input type="text" id="in-title" placeholder="E.g., Dr. / Mr. / Ir.">
         </div>
 
         <div class="form-group">
             <label>First Name:</label>
-            <input type="text" id="in-firstname" placeholder="E.g., Aminah">
+            <input type="text" id="in-firstname" placeholder="First Name">
         </div>
 
         <div class="form-group">
-            <label>Last Name (Surname / Father's Name):</label>
-            <input type="text" id="in-lastname" placeholder="E.g., Ahmad">
+            <label>Last Name:</label>
+            <input type="text" id="in-lastname" placeholder="Last Name">
         </div>
 
         <div class="form-group">
             <label>Job Title:</label>
-            <input type="text" id="in-job" placeholder="E.g., Senior Software Engineer">
+            <input type="text" id="in-job" placeholder="Job Title">
         </div>
 
         <div class="form-group">
             <label>Company / University Name:</label>
-            <input type="text" id="in-company" placeholder="E.g., Technova Solutions">
+            <input type="text" id="in-company" placeholder="Company Name">
         </div>
         
         <div class="form-group">
             <label>Country or Territory:</label>
-            <input type="text" id="in-country" placeholder="E.g., Malaysia" value="Malaysia">
+            <input type="text" id="in-country" value="Malaysia">
         </div>
 
         <div class="form-group">
             <label>Company Email:</label>
-            <input type="email" id="in-email" placeholder="E.g., aminah@technova.com">
+            <input type="email" id="in-email" placeholder="email@company.com">
         </div>
 
         <div class="form-group">
             <label>Phone Number (Optional):</label>
-            <input type="text" id="in-phone" placeholder="E.g., +6014-325240">
+            <input type="text" id="in-phone" placeholder="+60...">
         </div>
         
-        <p style="font-size:12px; color:gray;">Raw OCR Text Output:</p>
-        <textarea id="out-raw" rows="3" disabled></textarea>
+        <p style="font-size:12px; color:gray; font-weight:bold;">Raw OCR Text Output:</p>
+        <textarea id="out-raw" rows="4"></textarea>
 
         <button id="btn-simpan" class="btn-save">💾 Save to Database</button>
     </div>
@@ -230,9 +164,10 @@
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+                        facingMode: 'environment', 
+                        width: { ideal: 1920 }, 
+                        height: { ideal: 1080 },
+                        advanced: [{ focusMode: 'continuous' }]
                     },
                     audio: false
                 });
@@ -240,9 +175,9 @@
                 cameraContainer.style.display = 'block';
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Align card and ensure good lighting.</p>";
+                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Keep lighting bright and avoid glare.</p>";
             } catch (err) {
-                alert("❌ Camera access denied or not supported: " + err);
+                alert("❌ Camera error: " + err);
             }
         });
 
@@ -260,15 +195,14 @@
             btnCaptureCam.style.display = 'none';
             btnStartCam.style.display = 'block';
 
-            const capturedImageURL = canvas.toDataURL('image/jpeg', 0.95);
-            runTesseractOCR(capturedImageURL);
+            processAndRunOCR(canvas);
         });
 
         document.getElementById('gallery-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusDiv.innerHTML = "<p class='loading'>⏳ Preparing gallery image...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Processing uploaded image...</p>";
             btnSimpan.style.display = "none";
 
             const reader = new FileReader();
@@ -279,24 +213,50 @@
                 img.onload = function() {
                     const canvas = document.getElementById('canvas');
                     const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
                     
-                    let maxWidth = 1200;
-                    let scale = maxWidth / img.width;
-                    if (scale > 1) scale = 1;
-
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const resizedImageURL = canvas.toDataURL('image/jpeg', 0.95);
-                    runTesseractOCR(resizedImageURL);
+                    processAndRunOCR(canvas);
                 };
             };
         });
 
+        function processAndRunOCR(canvas) {
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+
+            const contrastFactor = 1.5;
+            const intercept = 128 * (1 - contrastFactor);
+
+            for (let i = 0; i < data.length; i += 4) {
+                let avg = (data[i] * 0.299) + (data[i+1] * 0.587) + (data[i+2] * 0.114);
+                let contrasted = avg * contrastFactor + intercept;
+                let finalVal = contrasted < 0 ? 0 : (contrasted > 255 ? 255 : contrasted);
+
+                data[i]     = finalVal;
+                data[i+1]   = finalVal;
+                data[i+2]   = finalVal;
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            runTesseractOCR(canvas.toDataURL('image/jpeg', 0.95));
+        }
+
         async function runTesseractOCR(imageSource) {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Initializing OCR engine & reading text...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Reading text and parsing fields...</p>";
             btnSimpan.style.display = "none";
+
+            // Reset form fields
+            document.getElementById('in-title').value = "";
+            document.getElementById('in-firstname').value = "";
+            document.getElementById('in-lastname').value = "";
+            document.getElementById('in-job').value = "";
+            document.getElementById('in-company').value = "";
+            document.getElementById('in-email').value = "";
+            document.getElementById('in-phone').value = "";
+            document.getElementById('out-raw').value = "";
 
             try {
                 const worker = await Tesseract.createWorker('eng');
@@ -307,41 +267,96 @@
                 statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review details below.</p>";
                 document.getElementById('out-raw').value = text;
 
-                const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
-                document.getElementById('in-email').value = emailMatch ? emailMatch[0] : "";
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
-                const phoneMatch = text.match(/(\+?60|01)[0-9-\s]{8,10}/);
-                document.getElementById('in-phone').value = phoneMatch ? phoneMatch[0].trim() : "";
+                let detectedTitle = "";
+                let detectedName = "";
+                let detectedJob = "";
+                let detectedCompany = "";
+                let detectedEmail = "";
+                let detectedPhone = "";
 
-                const lines = text.split('\n').filter(line => line.trim().length > 0);
-                if (lines.length > 0) document.getElementById('in-company').value = lines[0]; 
-                
-                if (lines.length > 1) {
-                    let rawNameLine = lines[1].trim();
-                    let detectedTitle = "";
-                    
-                    const commonTitles = ["Dr.", "Prof.", "Ts.", "Ir.", "En.", "Cik", "Pn.", "Mr.", "Ms."];
-                    
-                    for (let t of commonTitles) {
-                        if (rawNameLine.startsWith(t)) {
+                const titlesList = ["Dr.", "Prof.", "Ts.", "Ir.", "En.", "Cik", "Pn.", "Mr.", "Ms."];
+                const jobKeywords = ["DIRECTOR", "MANAGER", "ENGINEER", "EXECUTIVE", "OFFICER", "SPECIALIST", "CONSULTANT", "DEVELOPER", "LECTURER", "SERVICE DELIVERY", "LIAISON", "SENIOR", "FOUNDER"];
+
+                // 1. Extract Email & Phone
+                for (let line of lines) {
+                    if (!detectedEmail && line.includes('@')) {
+                        let matchEmail = line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                        if (matchEmail) detectedEmail = matchEmail[0];
+                    }
+                    if (!detectedPhone && (/(\+?60|01|0[3-9])[0-9\-\s]{7,12}/).test(line)) {
+                        let matchPhone = line.match(/(\+?60|01|0[3-9])[0-9\-\s]{7,12}/);
+                        if (matchPhone) detectedPhone = matchPhone[0].trim();
+                    }
+                }
+
+                // 2. Extract Company Name (Cut registration numbers after Sdn Bhd / Bhd / Enterprise)
+                for (let line of lines) {
+                    let upper = line.toUpperCase();
+                    if (!detectedCompany && (upper.includes("SDN") || upper.includes("BHD") || upper.includes("ENTERPRISE") || upper.includes("CONSULT"))) {
+                        let cleanLine = line;
+                        let sdnBhdIdx = upper.indexOf("SDN");
+                        let bhdIdx = upper.indexOf("BHD");
+                        let entIdx = upper.indexOf("ENTERPRISE");
+
+                        if (sdnBhdIdx !== -1) {
+                            let cutPoint = sdnBhdIdx + (upper.includes("SDN.") ? 8 : 7);
+                            cleanLine = line.substring(0, cutPoint);
+                        } else if (bhdIdx !== -1) {
+                            cleanLine = line.substring(0, bhdIdx + 3);
+                        } else if (entIdx !== -1) {
+                            cleanLine = line.substring(0, entIdx + 10);
+                        }
+
+                        detectedCompany = cleanLine.replace(/[^a-zA-Z0-9\s\.\,\(\)]+$/, "").trim();
+                        break;
+                    }
+                }
+
+                // 3. Extract Job Title
+                for (let line of lines) {
+                    let upper = line.toUpperCase();
+                    if (!detectedJob && line !== detectedCompany && jobKeywords.some(kw => upper.includes(kw))) {
+                        detectedJob = line;
+                        break;
+                    }
+                }
+
+                // 4. Extract Name
+                for (let line of lines) {
+                    let upper = line.toUpperCase();
+                    if (line === detectedCompany || line === detectedJob || line.includes('@') || upper.includes("JALAN") || upper.includes("SUITE") || upper.includes("LEVEL") || upper.includes("REGISTRATION") || upper.includes("KUALA LUMPUR") || upper.includes("SELANGOR") || upper.includes("WWW.") || (/^[0-9\-\+\s]+$/).test(line)) {
+                        continue;
+                    }
+
+                    for (let t of titlesList) {
+                        if (line.startsWith(t)) {
                             detectedTitle = t;
-                            rawNameLine = rawNameLine.replace(t, "").trim();
+                            line = line.replace(t, "").trim();
                             break;
                         }
                     }
 
-                    document.getElementById('in-title').value = detectedTitle;
-
-                    let nameParts = rawNameLine.split(' ').filter(part => {
-                        let p = part.toLowerCase();
-                        return p !== 'binti' && p !== 'bin' && p !== 'bte';
-                    });
-
-                    document.getElementById('in-firstname').value = nameParts[0] || ""; 
-                    document.getElementById('in-lastname').value = nameParts.slice(1).join(' ') || ""; 
+                    if (!detectedName && (upper.includes(" BIN ") || upper.includes(" BINTI ") || upper.includes(" A/L ") || upper.includes(" A/P ") || (!jobKeywords.some(kw => upper.includes(kw)) && !upper.includes("SDN") && !upper.includes("BHD") && line.length > 3 && line.length < 30))) {
+                        detectedName = line;
+                        break;
+                    }
                 }
 
-                if (lines.length > 2) document.getElementById('in-job').value = lines[2]; 
+                // Populate Form Fields
+                document.getElementById('in-title').value = detectedTitle;
+                
+                if (detectedName) {
+                    let parts = detectedName.split(' ');
+                    document.getElementById('in-firstname').value = parts[0] || "";
+                    document.getElementById('in-lastname').value = parts.slice(1).join(' ') || "";
+                }
+
+                document.getElementById('in-job').value = detectedJob || "";
+                document.getElementById('in-company').value = detectedCompany || "";
+                document.getElementById('in-email').value = detectedEmail ? detectedEmail.toLowerCase() : "";
+                document.getElementById('in-phone').value = detectedPhone || "";
 
                 btnSimpan.style.display = "block";
 
@@ -356,3 +371,29 @@
                 first_name: document.getElementById('in-firstname').value.trim(),
                 last_name: document.getElementById('in-lastname').value.trim(),
                 job_title: document.getElementById('in-job').value.trim(),
+                company: document.getElementById('in-company').value.trim(),
+                country: document.getElementById('in-country').value.trim(),
+                email: document.getElementById('in-email').value.trim().toLowerCase(),
+                phone: document.getElementById('in-phone').value.trim(), 
+                time_scanned: new Date().toLocaleString()
+            };
+
+            if (!finalData.title || !finalData.first_name || !finalData.last_name || !finalData.job_title || !finalData.company || !finalData.country || !finalData.email) {
+                alert("⚠️ Please fill in all required fields!");
+                return;
+            }
+
+            btnSimpan.innerText = "⏳ Saving to Database...";
+            database.ref('AlumniCards').push(finalData)
+            .then(() => {
+                alert("✅ Successfully saved to Firebase!");
+                location.reload();
+            })
+            .catch((error) => {
+                alert("❌ Failed to save: " + error);
+                btnSimpan.innerText = "💾 Save to Database";
+            });
+        });
+    </script>
+</body>
+</html>
