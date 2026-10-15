@@ -36,7 +36,6 @@
         #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 10px; }
         #video-stream { width: 100%; height: auto; display: block; }
         
-        /* Dynamic Viewfinder Frame */
         .viewfinder-overlay {
             position: absolute; top: 25%; left: 10%; width: 80%; height: 50%;
             border: 3px dashed #ff4d4d; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
@@ -83,7 +82,7 @@
     <button type="button" class="upload-btn btn-camera" id="btn-start-cam">📸 Open Live Camera Viewfinder</button>
     
     <div id="camera-container">
-        <video id="video-stream" autoplay playsinline></video>
+        <video id="video-stream" autoplay playsinline muted></video>
         <div class="viewfinder-overlay" id="viewfinder-frame">
             <div class="viewfinder-text" id="viewfinder-msg">⚠️ Center business card inside box</div>
         </div>
@@ -195,18 +194,23 @@
         let analysisInterval = null;
 
         btnStartCam.addEventListener('click', async function() {
+            statusDiv.innerHTML = "<p class='loading'>⏳ Requesting camera permission...</p>";
             try {
+                // Dipermudahkan konstrain agar serasi dengan semua jenis telefon pintar (Android & iOS)
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'environment', 
-                        width: { ideal: 3840 }, 
-                        height: { ideal: 2160 }
+                        facingMode: 'environment' 
                     },
                     audio: false
                 });
                 
                 videoStream.srcObject = mediaStream;
-                track = mediaStream.getVideoTracks()[0];
+                await videoStream.play();
+
+                const videoTracks = mediaStream.getVideoTracks();
+                if (videoTracks.length > 0) {
+                    track = videoTracks[0];
+                }
 
                 cameraContainer.style.display = 'block';
                 brightnessBox.style.display = 'flex';
@@ -215,15 +219,15 @@
                 
                 statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Align card in frame.</p>";
                 
-                // Mula jalankan analisis frame video secara berkala
                 startViewfinderAnalyzer();
 
             } catch (err) {
-                alert("❌ Camera error: " + err);
+                console.error("Camera access error:", err);
+                statusDiv.innerHTML = `<p style='color: red;'>❌ Camera Error: ${err.message}. Pastikan anda guna HTTPS dan beri kebenaran (permission) kamera.</p>`;
+                alert("❌ Tidak dapat membuka kamera: " + err.message + "\n\nSila pastikan anda melayari laman web ini menggunakan HTTPS dan telah memberi kebenaran akses kamera.");
             }
         });
 
-        // Fungsi Pintar Menganalisis Cahaya & Objek dalam Viewfinder
         function startViewfinderAnalyzer() {
             const analysisCanvas = document.createElement('canvas');
             const analysisCtx = analysisCanvas.getContext('2d');
@@ -255,7 +259,6 @@
                 let avgBrightness = totalBrightness / (imgData.length / 16);
                 let avgEdge = edgeVariation / (imgData.length / 16);
 
-                // Syarat kotak menyala hijau: Pencahayaan stabil & ada variasi objek kad
                 if (avgBrightness > 40 && avgBrightness < 230 && avgEdge > 3.5) {
                     viewfinderFrame.classList.add('ready');
                     viewfinderMsg.innerText = "✨ Perfect! Ready to Capture";
@@ -278,7 +281,7 @@
 
         btnFlash.addEventListener('click', async function() {
             if (!track) return;
-            const capabilities = track.getCapabilities();
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
             
             if (capabilities && capabilities.torch) {
                 flashOn = !flashOn;
@@ -303,15 +306,15 @@
             if (analysisInterval) clearInterval(analysisInterval);
 
             const canvas = document.getElementById('canvas');
-            canvas.width = videoStream.videoWidth || 1920;
-            canvas.height = videoStream.videoHeight || 1080;
+            canvas.width = videoStream.videoWidth || 1280;
+            canvas.height = videoStream.videoHeight || 720;
             
             const ctx = canvas.getContext('2d');
             ctx.filter = `brightness(${brightnessRange.value}) contrast(1.5)`;
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
             if (track && flashOn) {
-                track.applyConstraints({ advanced: [{ torch: false }] });
+                track.applyConstraints({ advanced: [{ torch: false }] }).catch(e => {});
                 flashOn = false;
                 btnFlash.innerText = "🔦 Flash: OFF";
                 btnFlash.classList.remove('active');
@@ -408,10 +411,9 @@
                 const titlesList = ["Dr.", "Prof.", "Ts.", "Ir.", "En.", "Cik", "Pn.", "Mr.", "Ms."];
                 const jobKeywords = ["DIRECTOR", "MANAGER", "ENGINEER", "EXECUTIVE", "OFFICER", "SPECIALIST", "CONSULTANT", "DEVELOPER", "LECTURER", "SERVICE DELIVERY", "LIAISON", "SENIOR", "FOUNDER"];
 
-                // 1. Extract Email & Phone
                 for (let line of lines) {
                     if (!detectedEmail && line.includes('@')) {
-                        let matchEmail = line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/);
+                        let matchEmail = line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
                         if (matchEmail) detectedEmail = matchEmail[0];
                     }
                     if (!detectedPhone && (/(\+?60|01|0[3-9])[0-9\-\s]{7,12}/).test(line)) {
@@ -420,7 +422,6 @@
                     }
                 }
 
-                // 2. Extract Company Name (Cut registration numbers after Sdn Bhd / Bhd / Enterprise)
                 for (let line of lines) {
                     let upper = line.toUpperCase();
                     if (!detectedCompany && (upper.includes("SDN") || upper.includes("BHD") || upper.includes("ENTERPRISE") || upper.includes("CONSULT"))) {
@@ -443,7 +444,6 @@
                     }
                 }
 
-                // 3. Extract Job Title
                 for (let line of lines) {
                     let upper = line.toUpperCase();
                     if (!detectedJob && line !== detectedCompany && jobKeywords.some(kw => upper.includes(kw))) {
@@ -452,7 +452,6 @@
                     }
                 }
 
-                // 4. Extract Name
                 for (let line of lines) {
                     let upper = line.toUpperCase();
                     if (line === detectedCompany || line === detectedJob || line.includes('@') || upper.includes("JALAN") || upper.includes("SUITE") || upper.includes("LEVEL") || upper.includes("REGISTRATION") || upper.includes("KUALA LUMPUR") || upper.includes("SELANGOR") || upper.includes("WWW.") || (/^[0-9\-\+\s]+$/).test(line)) {
@@ -473,7 +472,6 @@
                     }
                 }
 
-                // Populate Form Fields
                 document.getElementById('in-title').value = detectedTitle;
                 
                 if (detectedName) {
