@@ -44,13 +44,13 @@
         }
         #video-stream { width: 100%; height: auto; display: block; background: #000; }
 
-        /* Bingkai Viewfinder Asal (Oren) */
+        /* Bingkai Viewfinder Melintang (Landscape) Sebenar Kad Perniagaan */
         .viewfinder-frame {
             position: absolute;
-            top: 25%;
-            left: 10%;
-            width: 80%;
-            height: 50%;
+            top: 32%;
+            left: 5%;
+            width: 90%;
+            height: 35%;
             border: 3px dashed #ff9800; 
             box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
             pointer-events: none;
@@ -121,7 +121,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Smart Viewfinder:</b> Bingkai akan kekal oren dan hanya bertukar hijau apabila kad diletakkan tepat di dalam kawasan kotak.
+            <b>Smart Viewfinder:</b> Bingkai landskap diselaraskan mengikut saiz kad perniagaan sebenar.
         </div>
 
         <div class="form-group">
@@ -213,7 +213,7 @@
                 cameraContainer.style.display = 'block';
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila isi kad dalam kotak.</p>";
+                statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila letak kad dalam bingkai.</p>";
 
                 startPreciseCardDetection();
 
@@ -223,7 +223,6 @@
             }
         });
 
-        // Logik Pengesanan Tepat: Hanya hijau jika objek kad (berbeza warna dengan latar belakang meja) dikesan di tengah
         function startPreciseCardDetection() {
             const checkCanvas = document.createElement('canvas');
             const checkCtx = checkCanvas.getContext('2d');
@@ -233,13 +232,12 @@
 
                 checkCanvas.width = 100;
                 checkCanvas.height = 100;
-                checkCtx.drawImage(videoStream, 20, 15, 60, 70, 0, 0, 100, 100);
+                checkCtx.drawImage(videoStream, 15, 30, 70, 40, 0, 0, 100, 100);
 
                 const pixels = checkCtx.getImageData(0, 0, 100, 100).data;
                 let centerColorSum = 0;
                 let borderVariance = 0;
 
-                // Kira purata warna di tengah kotak
                 for (let i = 0; i < pixels.length; i += 16) {
                     let r = pixels[i];
                     let g = pixels[i+1];
@@ -248,7 +246,6 @@
                 }
                 let avgCenter = centerColorSum / (pixels.length / 16);
 
-                // Semak perbezaan tepi (untuk pastikan ada objek kad diletakkan, bukan kosong)
                 for (let i = 0; i < 400; i += 16) {
                     let r = pixels[i];
                     let g = pixels[i+1];
@@ -257,8 +254,7 @@
                     borderVariance += Math.abs(avgCenter - edgeLum);
                 }
 
-                // Syarat ketat: Kotak hanya hijau jika ada objek kad yang jelas menutupi ruang tengah
-                if (borderVariance > 800 && avgCenter > 50 && avgCenter < 240) {
+                if (borderVariance > 700 && avgCenter > 50 && avgCenter < 240) {
                     viewFrame.classList.add('ready');
                     viewMsg.innerText = "✨ Posisi Tepat! Sedia Tekan Capture";
                     viewMsg.style.color = "#00ffcc";
