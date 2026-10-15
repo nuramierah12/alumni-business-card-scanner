@@ -44,25 +44,25 @@
         }
         #video-stream { width: 100%; height: auto; display: block; background: #000; }
 
-        /* Kotak Bingkai Viewfinder Fizikal di atas Video */
+        /* Bingkai Viewfinder Asal (Oren) */
         .viewfinder-frame {
             position: absolute;
             top: 25%;
             left: 10%;
             width: 80%;
             height: 50%;
-            border: 3px dashed #ff9800; /* Warna asal oren */
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
+            border: 3px dashed #ff9800; 
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             box-sizing: border-box;
             border-radius: 8px;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.3s ease;
         }
         
-        /* Bila posisi kad tepat & terang, bingkai jadi hijau berkilat */
+        /* Bila kad betul-betul ngam dalam kotak, bingkai bertukar Hijau */
         .viewfinder-frame.ready {
             border: 3px solid #00ffcc !important;
-            box-shadow: 0 0 15px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 20px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.5);
         }
 
         .viewfinder-text { 
@@ -73,7 +73,7 @@
             color: #fff; 
             font-size: 13px; 
             font-weight: bold; 
-            background: rgba(0, 0, 0, 0.7); 
+            background: rgba(0, 0, 0, 0.75); 
             padding: 6px 0; 
         }
 
@@ -103,9 +103,8 @@
     
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline muted></video>
-        <!-- Bingkai kotak panduan visual -->
         <div class="viewfinder-frame" id="view-frame">
-            <div class="viewfinder-text" id="view-msg">⚠️ Sila letak kad dalam kotak</div>
+            <div class="viewfinder-text" id="view-msg">⚠️ Letakkan kad di dalam kotak</div>
         </div>
     </div>
 
@@ -122,7 +121,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Smart Viewfinder:</b> Bingkai akan menyala hijau apabila kad dikesan dengan jelas di dalam kotak.
+            <b>Smart Viewfinder:</b> Bingkai akan kekal oren dan hanya bertukar hijau apabila kad diletakkan tepat di dalam kawasan kotak.
         </div>
 
         <div class="form-group">
@@ -214,10 +213,9 @@
                 cameraContainer.style.display = 'block';
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila halakan kad dalam bingkai.</p>";
+                statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila isi kad dalam kotak.</p>";
 
-                // Mula analisis cahaya dan objek dalam bingkai viewfinder
-                startFrameAnalysis();
+                startStrictCardDetection();
 
             } catch (err) {
                 alert("Ralat Kamera: " + err.message);
@@ -225,53 +223,51 @@
             }
         });
 
-        // Fungsi Pintar Analisis Bingkai Viewfinder
-        function startFrameAnalysis() {
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+        // Logik Pengesanan Ketat (Bingkai hanya hijau jika kad menutupi kotak dengan stabil)
+        function startStrictCardDetection() {
+            const checkCanvas = document.createElement('canvas');
+            const checkCtx = checkCanvas.getContext('2d');
 
             analysisInterval = setInterval(() => {
                 if (videoStream.readyState !== videoStream.HAVE_ENOUGH_DATA) return;
 
-                tempCanvas.width = 100;
-                tempCanvas.height = 100;
-                tempCtx.drawImage(videoStream, 0, 0, 100, 100);
+                checkCanvas.width = 120;
+                checkCanvas.height = 120;
+                // Ambil sampel tepat dari bahagian tengah skrin (kawasan kotak viewfinder)
+                checkCtx.drawImage(videoStream, 30, 20, 60, 60, 0, 0, 120, 120);
 
-                const imgData = tempCtx.getImageData(0, 0, 100, 100).data;
-                let totalBrightness = 0;
-                let contrastCheck = 0;
+                const pixels = checkCtx.getImageData(0, 0, 120, 120).data;
+                let edgePoints = 0;
+                let avgColorSum = 0;
 
-                for (let i = 0; i < imgData.length; i += 16) {
-                    let r = imgData[i];
-                    let g = imgData[i+1];
-                    let b = imgData[i+2];
-                    let brightness = (r + g + b) / 3;
-                    totalBrightness += brightness;
+                for (let i = 0; i < pixels.length; i += 16) {
+                    let r = pixels[i];
+                    let g = pixels[i+1];
+                    let b = pixels[i+2];
+                    let lum = (r + g + b) / 3;
+                    avgColorSum += lum;
 
                     if (i > 16) {
-                        let prevB = (imgData[i-16] + imgData[i-15] + imgData[i-14]) / 3;
-                        contrastCheck += Math.abs(brightness - prevB);
+                        let prevLum = (pixels[i-16] + pixels[i-15] + pixels[i-14]) / 3;
+                        if (Math.abs(lum - prevLum) > 25) {
+                            edgePoints++; // Mengesan garisan teks atau sempadan kad
+                        }
                     }
                 }
 
-                let avgBrightness = totalBrightness / (imgData.length / 16);
-                let avgContrast = contrastCheck / (imgData.length / 16);
+                let centerBrightness = avgColorSum / (pixels.length / 16);
 
-                // Syarat kotak bertukar hijau (pencahayaan cukup dan objek stabil)
-                if (avgBrightness > 45 && avgBrightness < 220 && avgContrast > 3.0) {
+                // Syarat ketat: Kotak hanya jadi hijau jika ada objek teks/kad (edge tinggi) di tengah
+                if (edgePoints > 120 && centerBrightness > 50 && centerBrightness < 235) {
                     viewFrame.classList.add('ready');
-                    viewMsg.innerText = "✨ Posisi OK! Sedia untuk Capture";
+                    viewMsg.innerText = "✨ Posisi Tepat! Sedia Tekan Capture";
                     viewMsg.style.color = "#00ffcc";
-                } else if (avgBrightness <= 45) {
-                    viewFrame.classList.remove('ready');
-                    viewMsg.innerText = "💡 Terlalu gelap! Cari kawasan terang";
-                    viewMsg.style.color = "#ff4d4d";
                 } else {
                     viewFrame.classList.remove('ready');
-                    viewMsg.innerText = "↔️ Laraskan jarak & pastikan stabil";
-                    viewMsg.style.color = "#ffeb3b";
+                    viewMsg.innerText = "⚠️ Sila letak kad di dalam kotak";
+                    viewMsg.style.color = "#ff9800";
                 }
-            }, 500);
+            }, 400);
         }
 
         btnCaptureCam.addEventListener('click', function() {
