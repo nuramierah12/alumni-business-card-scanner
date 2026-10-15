@@ -36,6 +36,30 @@
         #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 10px; }
         #video-stream { width: 100%; height: auto; display: block; background: #000; }
 
+        /* Viewfinder Guidelines */
+        .viewfinder-overlay {
+            position: absolute;
+            top: 35%; /* Posisi menegak */
+            left: 10%; /* Posisi melintang */
+            width: 80%; /* Lebar frame */
+            height: 30%; /* Tinggi frame */
+            border: 3px dashed #ff9800; /* Warna garisan panduan */
+            pointer-events: none; /* Supaya klik tembus ke video */
+            box-sizing: border-box;
+            border-radius: 8px;
+        }
+        
+        /* Teks panduan jarak di bawah video */
+        #distance-guide-text {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+        #distance-guide-text.too-far { color: blue; }
+        #distance-guide-text.ready { color: green; }
+
         .upload-btn {
             display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
             font-weight: bold; font-size: 15px; text-align: center; cursor: pointer; margin-top: 10px; box-sizing: border-box; border: none;
@@ -62,7 +86,12 @@
     
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline muted></video>
+        <!-- Garisan Panduan Statik -->
+        <div class="viewfinder-overlay"></div>
     </div>
+    <!-- Teks Panduan Jarak Dinamik -->
+    <div id="distance-guide-text">Tekan kamera untuk mula</div>
+
     <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
 
     <label for="gallery-input" class="upload-btn btn-gallery">
@@ -76,7 +105,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Scanner Ready:</b> Open camera or upload from gallery to scan business cards.
+            <b>Demo Panduan:</b> Pastikan kad berada di dalam garisan putus-putus oren dan teks panduan bertukar hijau sebelum tekan 'Capture'.
         </div>
 
         <div class="form-group">
@@ -148,6 +177,7 @@
         const cameraContainer = document.getElementById('camera-container');
         const btnStartCam = document.getElementById('btn-start-cam');
         const btnCaptureCam = document.getElementById('btn-capture-cam');
+        const distanceGuideText = document.getElementById('distance-guide-text');
         
         let mediaStream = null;
 
@@ -166,12 +196,67 @@
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
                 statusDiv.innerHTML = "<p class='success'>📷 Kamera sedang aktif!</p>";
+                
+                // Mula memantau jarak kad dari kamera
+                startDistanceMonitor();
 
             } catch (err) {
                 alert("Ralat Kamera: " + err.message);
                 statusDiv.innerHTML = "<p style='color:red;'>❌ Gagal membuka kamera. Pastikan guna HTTPS dan beri kebenaran.</p>";
             }
         });
+
+        // Fungsi untuk menganggarkan jarak kad dan tukar warna teks panduan
+        function startDistanceMonitor() {
+            // Kita gunakan ektraksi kontras piksel mudah dalam kotak tengah
+            const analyzeCanvas = document.createElement('canvas');
+            const ctx = analyzeCanvas.getContext('2d');
+            const frameArea = document.querySelector('.viewfinder-overlay');
+            
+            setInterval(() => {
+                if (!videoStream.srcObject) return;
+                
+                // Ambil saiz video sebenar
+                const vWidth = videoStream.videoWidth;
+                const vHeight = videoStream.videoHeight;
+                if (vWidth === 0) return;
+
+                // Kira saiz dan kedudukan relatif viewfinder di atas video sebenar
+                // Asumsikan viewfinder berada di kedudukan 35% top, 10% left, 80% width, 30% height dari container
+                const cropX = vWidth * 0.10;
+                const cropY = vHeight * 0.35;
+                const cropW = vWidth * 0.80;
+                const cropH = vHeight * 0.30;
+
+                // Lukis kawasan viewfinder ke dalam canvas analisis kecil
+                analyzeCanvas.width = 100;
+                analyzeCanvas.height = 100;
+                ctx.drawImage(videoStream, cropX, cropY, cropW, cropH, 0, 0, 100, 100);
+
+                // Analisis kecerahan purata kawasan tersebut (cahaya/gelap)
+                const imgData = ctx.getImageData(0, 0, 100, 100).data;
+                let brightness = 0;
+                for (let i = 0; i < imgData.length; i += 4) {
+                    brightness += (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
+                }
+                brightness = brightness / (imgData.length / 4);
+
+                // Tentukan arahan jarak berdasarkan kecerahan piksel di tengah
+                if (brightness > 180) {
+                    // Cahaya sangat terang dalam frame, kad mungkin terlalu jauh/silau
+                    distanceGuideText.innerText = "Kad terlalu jauh/kabur. Gerak ke depan sedikit.";
+                    distanceGuideText.className = "too-far";
+                } else if (brightness > 60 && brightness <= 180) {
+                    // Kecerahan ideal, kad menutupi frame dengan jelas
+                    distanceGuideText.innerText = "✨ Posisi OK! Sedia untuk Capture.";
+                    distanceGuideText.className = "ready";
+                } else {
+                    // Frame gelap gelita, kad mungkin menutupi kamera sepenuhnya atau terlalu dekat
+                    distanceGuideText.innerText = "Terlalu dekat/gelap. Gerak sedikit ke belakang/terangkan.";
+                    distanceGuideText.className = "too-far";
+                }
+            }, 500); // Analisis setiap 500ms
+        }
 
         btnCaptureCam.addEventListener('click', function() {
             const canvas = document.getElementById('canvas');
@@ -187,6 +272,8 @@
             cameraContainer.style.display = 'none';
             btnCaptureCam.style.display = 'none';
             btnStartCam.style.display = 'block';
+            distanceGuideText.innerText = "Tekan kamera untuk mula";
+            distanceGuideText.className = "";
 
             processAndRunOCR(canvas);
         });
