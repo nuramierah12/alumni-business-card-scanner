@@ -34,35 +34,14 @@
         .alert-note { background-color: #e2f0d9; color: #385723; padding: 10px; border-radius: 5px; border: 1px solid #c8e1b7; font-size: 13px; margin-bottom: 15px; }
         
         #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 10px; }
-        #video-stream { width: 100%; height: auto; display: block; }
-        
-        .viewfinder-overlay {
-            position: absolute; top: 25%; left: 10%; width: 80%; height: 50%;
-            border: 3px dashed #ff4d4d; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
-            pointer-events: none; box-sizing: border-box; border-radius: 8px;
-            transition: border-color 0.3s ease;
-        }
-        .viewfinder-overlay.ready {
-            border: 3px solid #00ffcc !important;
-            box-shadow: 0 0 15px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.5);
-        }
-        .viewfinder-text { 
-            position: absolute; top: 5px; width: 100%; text-align: center; color: #fff; 
-            font-size: 13px; font-weight: bold; background: rgba(0, 0, 0, 0.7); padding: 6px 0; 
-        }
-        
-        .brightness-box { display: none; align-items: center; gap: 10px; background: #222; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; color: white; font-size: 13px; }
-        .brightness-box input { flex: 1; }
+        #video-stream { width: 100%; height: auto; display: block; background: #000; }
 
-        .camera-controls { display: none; gap: 10px; margin-bottom: 15px; }
         .upload-btn {
             display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
             font-weight: bold; font-size: 15px; text-align: center; cursor: pointer; margin-top: 10px; box-sizing: border-box; border: none;
         }
         .btn-camera { background-color: #008CBA; }
-        .btn-capture { background-color: #ff9800; margin: 0; flex: 2; }
-        .btn-flash { background-color: #333; margin: 0; flex: 1; }
-        .btn-flash.active { background-color: #f39c12; color: #fff; }
+        .btn-capture { background-color: #ff9800; margin-top: 5px; display: none; }
         .btn-gallery { background-color: #6c757d; }
         .btn-save { background-color: #4CAF50; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: none; cursor: pointer; margin-top: 20px;}
     </style>
@@ -83,20 +62,8 @@
     
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline muted></video>
-        <div class="viewfinder-overlay" id="viewfinder-frame">
-            <div class="viewfinder-text" id="viewfinder-msg">⚠️ Center business card inside box</div>
-        </div>
     </div>
-
-    <div class="brightness-box" id="brightness-box">
-        <span>☀️ Brightness:</span>
-        <input type="range" id="brightness-range" min="0.5" max="2.0" step="0.1" value="1.0">
-    </div>
-    
-    <div class="camera-controls" id="camera-controls">
-        <button type="button" class="upload-btn btn-flash" id="btn-flash">🔦 Flash: OFF</button>
-        <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
-    </div>
+    <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
 
     <label for="gallery-input" class="upload-btn btn-gallery">
         🖼️ Choose from Gallery
@@ -109,7 +76,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Smart Viewfinder Active:</b> Align card until the frame turns glowing green for optimal scanning results.
+            <b>Scanner Ready:</b> Open camera or upload from gallery to scan business cards.
         </div>
 
         <div class="form-group">
@@ -179,167 +146,46 @@
         
         const videoStream = document.getElementById('video-stream');
         const cameraContainer = document.getElementById('camera-container');
-        const cameraControls = document.getElementById('camera-controls');
-        const brightnessBox = document.getElementById('brightness-box');
-        const brightnessRange = document.getElementById('brightness-range');
         const btnStartCam = document.getElementById('btn-start-cam');
         const btnCaptureCam = document.getElementById('btn-capture-cam');
-        const btnFlash = document.getElementById('btn-flash');
-        const viewfinderFrame = document.getElementById('viewfinder-frame');
-        const viewfinderMsg = document.getElementById('viewfinder-msg');
         
         let mediaStream = null;
-        let track = null;
-        let flashOn = false;
-        let analysisInterval = null;
 
         btnStartCam.addEventListener('click', async function() {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Opening camera... Please allow permission.</p>";
-            
-            // Semak sama ada pelayar menyokong mediaDevices
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("❌ Pelayar anda tidak menyokong akses kamera terus.");
-                statusDiv.innerHTML = "<p style='color: red;'>❌ Browser not supported getUserMedia.</p>";
-                return;
-            }
-
+            statusDiv.innerHTML = "<p class='loading'>⏳ Meminta akses kamera...</p>";
             try {
-                // Minta akses kamera belakang (environment)
                 mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: { ideal: "environment" } 
-                    },
+                    video: { facingMode: 'environment' },
                     audio: false
                 });
-                
-                videoStream.srcObject = mediaStream;
-                
-                // Paksa video dimainkan dengan selamat
-                videoStream.onloadedmetadata = async () => {
-                    try {
-                        await videoStream.play();
-                        cameraContainer.style.display = 'block';
-                        brightnessBox.style.display = 'flex';
-                        cameraControls.style.display = 'flex';
-                        btnStartCam.style.display = 'none';
-                        statusDiv.innerHTML = "<p class='success'>📷 Live camera active!</p>";
-                        startViewfinderAnalyzer();
-                    } catch (playErr) {
-                        console.error("Video play failed:", playErr);
-                        alert("❌ Gagal memainkan video kamera: " + playErr.message);
-                    }
-                };
 
-                const videoTracks = mediaStream.getVideoTracks();
-                if (videoTracks.length > 0) {
-                    track = videoTracks[0];
-                }
+                videoStream.srcObject = mediaStream;
+                await videoStream.play();
+
+                cameraContainer.style.display = 'block';
+                btnCaptureCam.style.display = 'block';
+                btnStartCam.style.display = 'none';
+                statusDiv.innerHTML = "<p class='success'>📷 Kamera sedang aktif!</p>";
 
             } catch (err) {
-                console.error("Camera access error:", err);
-                statusDiv.innerHTML = `<p style='color: red;'>❌ Camera Error: ${err.message}</p>`;
-                alert("❌ Tidak dapat membuka kamera: " + err.message + "\n\nSila pastikan anda melayari laman web ini melalui protokol HTTPS (bukan HTTP biasa) dan telah memberi kebenaran (permission) kamera pada pelayar.");
-            }
-        });
-
-        function startViewfinderAnalyzer() {
-            const analysisCanvas = document.createElement('canvas');
-            const analysisCtx = analysisCanvas.getContext('2d');
-
-            analysisInterval = setInterval(() => {
-                if (videoStream.readyState !== videoStream.HAVE_ENOUGH_DATA) return;
-
-                analysisCanvas.width = 150;
-                analysisCanvas.height = 100;
-                analysisCtx.drawImage(videoStream, 0, 0, 150, 100);
-
-                const imgData = analysisCtx.getImageData(0, 0, 150, 100).data;
-                let totalBrightness = 0;
-                let edgeVariation = 0;
-
-                for (let i = 0; i < imgData.length; i += 16) {
-                    let r = imgData[i];
-                    let g = imgData[i+1];
-                    let b = imgData[i+2];
-                    let brightness = (r + g + b) / 3;
-                    totalBrightness += brightness;
-
-                    if (i > 16) {
-                        let prevBrightness = (imgData[i-16] + imgData[i-15] + imgData[i-14]) / 3;
-                        edgeVariation += Math.abs(brightness - prevBrightness);
-                    }
-                }
-
-                let avgBrightness = totalBrightness / (imgData.length / 16);
-                let avgEdge = edgeVariation / (imgData.length / 16);
-
-                if (avgBrightness > 40 && avgBrightness < 230 && avgEdge > 3.5) {
-                    viewfinderFrame.classList.add('ready');
-                    viewfinderMsg.innerText = "✨ Perfect! Ready to Capture";
-                    viewfinderMsg.style.color = "#00ffcc";
-                } else if (avgBrightness <= 40) {
-                    viewfinderFrame.classList.remove('ready');
-                    viewfinderMsg.innerText = "💡 Too dark! Turn on Flash or Brightness";
-                    viewfinderMsg.style.color = "#ff4d4d";
-                } else {
-                    viewfinderFrame.classList.remove('ready');
-                    viewfinderMsg.innerText = "↔️ Adjust position & steady card";
-                    viewfinderMsg.style.color = "#ffeb3b";
-                }
-            }, 500);
-        }
-
-        brightnessRange.addEventListener('input', function() {
-            videoStream.style.filter = `brightness(${brightnessRange.value}) contrast(1.2)`;
-        });
-
-        btnFlash.addEventListener('click', async function() {
-            if (!track) return;
-            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-            
-            if (capabilities && capabilities.torch) {
-                flashOn = !flashOn;
-                try {
-                    await track.applyConstraints({ advanced: [{ torch: flashOn }] });
-                    if (flashOn) {
-                        btnFlash.innerText = "🔦 Flash: ON";
-                        btnFlash.classList.add('active');
-                    } else {
-                        btnFlash.innerText = "🔦 Flash: OFF";
-                        btnFlash.classList.remove('active');
-                    }
-                } catch (err) {
-                    alert("❌ Failed to toggle flashlight: " + err);
-                }
-            } else {
-                alert("⚠️ Flashlight is not supported on this device/browser.");
+                alert("Ralat Kamera: " + err.message);
+                statusDiv.innerHTML = "<p style='color:red;'>❌ Gagal membuka kamera. Pastikan guna HTTPS dan beri kebenaran.</p>";
             }
         });
 
         btnCaptureCam.addEventListener('click', function() {
-            if (analysisInterval) clearInterval(analysisInterval);
-
             const canvas = document.getElementById('canvas');
             canvas.width = videoStream.videoWidth || 1280;
             canvas.height = videoStream.videoHeight || 720;
             
             const ctx = canvas.getContext('2d');
-            ctx.filter = `brightness(${brightnessRange.value}) contrast(1.5)`;
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
-            if (track && flashOn) {
-                track.applyConstraints({ advanced: [{ torch: false }] }).catch(e => {});
-                flashOn = false;
-                btnFlash.innerText = "🔦 Flash: OFF";
-                btnFlash.classList.remove('active');
-            }
-
             if (mediaStream) {
-                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream.getTracks().forEach(track => track.stop());
             }
             cameraContainer.style.display = 'none';
-            brightnessBox.style.display = 'none';
-            cameraControls.style.display = 'none';
+            btnCaptureCam.style.display = 'none';
             btnStartCam.style.display = 'block';
 
             processAndRunOCR(canvas);
@@ -349,7 +195,7 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            statusDiv.innerHTML = "<p class='loading'>⏳ Processing uploaded image...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Memproses imej...</p>";
             btnSimpan.style.display = "none";
 
             const reader = new FileReader();
@@ -392,7 +238,7 @@
         }
 
         async function runTesseractOCR(imageSource) {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Reading text and parsing fields...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Membaca teks dan memproses data...</p>";
             btnSimpan.style.display = "none";
 
             document.getElementById('in-title').value = "";
@@ -410,7 +256,7 @@
                 const text = ret.data.text;
                 await worker.terminate();
 
-                statusDiv.innerHTML = "<p class='success'>✅ Scan Complete! Review details below.</p>";
+                statusDiv.innerHTML = "<p class='success'>✅ Imbasan Selesai! Semak butiran di bawah.</p>";
                 document.getElementById('out-raw').value = text;
 
                 const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
@@ -520,18 +366,18 @@
             };
 
             if (!finalData.title || !finalData.first_name || !finalData.last_name || !finalData.job_title || !finalData.company || !finalData.country || !finalData.email) {
-                alert("⚠️ Please fill in all required fields!");
+                alert("⚠️ Sila lengkapkan ruangan bertanda wajib!");
                 return;
             }
 
-            btnSimpan.innerText = "⏳ Saving to Database...";
+            btnSimpan.innerText = "⏳ Menyimpan ke Pangkalan Data...";
             database.ref('AlumniCards').push(finalData)
             .then(() => {
-                alert("✅ Successfully saved to Firebase!");
+                alert("✅ Berjaya disimpan ke dalam Firebase!");
                 location.reload();
             })
             .catch((error) => {
-                alert("❌ Failed to save: " + error);
+                alert("❌ Gagal menyimpan: " + error);
                 btnSimpan.innerText = "💾 Save to Database";
             });
         });
