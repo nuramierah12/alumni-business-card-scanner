@@ -194,37 +194,51 @@
         let analysisInterval = null;
 
         btnStartCam.addEventListener('click', async function() {
-            statusDiv.innerHTML = "<p class='loading'>⏳ Requesting camera permission...</p>";
+            statusDiv.innerHTML = "<p class='loading'>⏳ Opening camera... Please allow permission.</p>";
+            
+            // Semak sama ada pelayar menyokong mediaDevices
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("❌ Pelayar anda tidak menyokong akses kamera terus.");
+                statusDiv.innerHTML = "<p style='color: red;'>❌ Browser not supported getUserMedia.</p>";
+                return;
+            }
+
             try {
-                // Dipermudahkan konstrain agar serasi dengan semua jenis telefon pintar (Android & iOS)
+                // Minta akses kamera belakang (environment)
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'environment' 
+                        facingMode: { ideal: "environment" } 
                     },
                     audio: false
                 });
                 
                 videoStream.srcObject = mediaStream;
-                await videoStream.play();
+                
+                // Paksa video dimainkan dengan selamat
+                videoStream.onloadedmetadata = async () => {
+                    try {
+                        await videoStream.play();
+                        cameraContainer.style.display = 'block';
+                        brightnessBox.style.display = 'flex';
+                        cameraControls.style.display = 'flex';
+                        btnStartCam.style.display = 'none';
+                        statusDiv.innerHTML = "<p class='success'>📷 Live camera active!</p>";
+                        startViewfinderAnalyzer();
+                    } catch (playErr) {
+                        console.error("Video play failed:", playErr);
+                        alert("❌ Gagal memainkan video kamera: " + playErr.message);
+                    }
+                };
 
                 const videoTracks = mediaStream.getVideoTracks();
                 if (videoTracks.length > 0) {
                     track = videoTracks[0];
                 }
 
-                cameraContainer.style.display = 'block';
-                brightnessBox.style.display = 'flex';
-                cameraControls.style.display = 'flex';
-                btnStartCam.style.display = 'none';
-                
-                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Align card in frame.</p>";
-                
-                startViewfinderAnalyzer();
-
             } catch (err) {
                 console.error("Camera access error:", err);
-                statusDiv.innerHTML = `<p style='color: red;'>❌ Camera Error: ${err.message}. Pastikan anda guna HTTPS dan beri kebenaran (permission) kamera.</p>`;
-                alert("❌ Tidak dapat membuka kamera: " + err.message + "\n\nSila pastikan anda melayari laman web ini menggunakan HTTPS dan telah memberi kebenaran akses kamera.");
+                statusDiv.innerHTML = `<p style='color: red;'>❌ Camera Error: ${err.message}</p>`;
+                alert("❌ Tidak dapat membuka kamera: " + err.message + "\n\nSila pastikan anda melayari laman web ini melalui protokol HTTPS (bukan HTTP biasa) dan telah memberi kebenaran (permission) kamera pada pelayar.");
             }
         });
 
