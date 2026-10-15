@@ -56,10 +56,10 @@
             pointer-events: none;
             box-sizing: border-box;
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
         
-        /* Bila kad betul-betul ngam dalam kotak, bingkai bertukar Hijau */
+        /* Bila kad diletakkan tepat di dalam kotak, bingkai bertukar Hijau */
         .viewfinder-frame.ready {
             border: 3px solid #00ffcc !important;
             box-shadow: 0 0 20px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.5);
@@ -215,7 +215,7 @@
                 btnStartCam.style.display = 'none';
                 statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila isi kad dalam kotak.</p>";
 
-                startStrictCardDetection();
+                startPreciseCardDetection();
 
             } catch (err) {
                 alert("Ralat Kamera: " + err.message);
@@ -223,51 +223,51 @@
             }
         });
 
-        // Logik Pengesanan Ketat (Bingkai hanya hijau jika kad menutupi kotak dengan stabil)
-        function startStrictCardDetection() {
+        // Logik Pengesanan Tepat: Hanya hijau jika objek kad (berbeza warna dengan latar belakang meja) dikesan di tengah
+        function startPreciseCardDetection() {
             const checkCanvas = document.createElement('canvas');
             const checkCtx = checkCanvas.getContext('2d');
 
             analysisInterval = setInterval(() => {
                 if (videoStream.readyState !== videoStream.HAVE_ENOUGH_DATA) return;
 
-                checkCanvas.width = 120;
-                checkCanvas.height = 120;
-                // Ambil sampel tepat dari bahagian tengah skrin (kawasan kotak viewfinder)
-                checkCtx.drawImage(videoStream, 30, 20, 60, 60, 0, 0, 120, 120);
+                checkCanvas.width = 100;
+                checkCanvas.height = 100;
+                checkCtx.drawImage(videoStream, 20, 15, 60, 70, 0, 0, 100, 100);
 
-                const pixels = checkCtx.getImageData(0, 0, 120, 120).data;
-                let edgePoints = 0;
-                let avgColorSum = 0;
+                const pixels = checkCtx.getImageData(0, 0, 100, 100).data;
+                let centerColorSum = 0;
+                let borderVariance = 0;
 
+                // Kira purata warna di tengah kotak
                 for (let i = 0; i < pixels.length; i += 16) {
                     let r = pixels[i];
                     let g = pixels[i+1];
                     let b = pixels[i+2];
-                    let lum = (r + g + b) / 3;
-                    avgColorSum += lum;
+                    centerColorSum += (r + g + b) / 3;
+                }
+                let avgCenter = centerColorSum / (pixels.length / 16);
 
-                    if (i > 16) {
-                        let prevLum = (pixels[i-16] + pixels[i-15] + pixels[i-14]) / 3;
-                        if (Math.abs(lum - prevLum) > 25) {
-                            edgePoints++; // Mengesan garisan teks atau sempadan kad
-                        }
-                    }
+                // Semak perbezaan tepi (untuk pastikan ada objek kad diletakkan, bukan kosong)
+                for (let i = 0; i < 400; i += 16) {
+                    let r = pixels[i];
+                    let g = pixels[i+1];
+                    let b = pixels[i+2];
+                    let edgeLum = (r + g + b) / 3;
+                    borderVariance += Math.abs(avgCenter - edgeLum);
                 }
 
-                let centerBrightness = avgColorSum / (pixels.length / 16);
-
-                // Syarat ketat: Kotak hanya jadi hijau jika ada objek teks/kad (edge tinggi) di tengah
-                if (edgePoints > 120 && centerBrightness > 50 && centerBrightness < 235) {
+                // Syarat ketat: Kotak hanya hijau jika ada objek kad yang jelas menutupi ruang tengah
+                if (borderVariance > 800 && avgCenter > 50 && avgCenter < 240) {
                     viewFrame.classList.add('ready');
                     viewMsg.innerText = "✨ Posisi Tepat! Sedia Tekan Capture";
                     viewMsg.style.color = "#00ffcc";
                 } else {
                     viewFrame.classList.remove('ready');
-                    viewMsg.innerText = "⚠️ Sila letak kad di dalam kotak";
+                    viewMsg.innerText = "⚠️ Letakkan kad di dalam kotak";
                     viewMsg.style.color = "#ff9800";
                 }
-            }, 400);
+            }, 300);
         }
 
         btnCaptureCam.addEventListener('click', function() {
