@@ -33,32 +33,49 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #e2f0d9; color: #385723; padding: 10px; border-radius: 5px; border: 1px solid #c8e1b7; font-size: 13px; margin-bottom: 15px; }
         
-        #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 10px; }
+        #camera-container { 
+            position: relative; 
+            width: 100%; 
+            background: #000; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            display: none; 
+            margin-bottom: 15px; 
+        }
         #video-stream { width: 100%; height: auto; display: block; background: #000; }
 
-        /* Viewfinder Guidelines */
-        .viewfinder-overlay {
+        /* Kotak Bingkai Viewfinder Fizikal di atas Video */
+        .viewfinder-frame {
             position: absolute;
-            top: 35%; /* Posisi menegak */
-            left: 10%; /* Posisi melintang */
-            width: 80%; /* Lebar frame */
-            height: 30%; /* Tinggi frame */
-            border: 3px dashed #ff9800; /* Warna garisan panduan */
-            pointer-events: none; /* Supaya klik tembus ke video */
+            top: 25%;
+            left: 10%;
+            width: 80%;
+            height: 50%;
+            border: 3px dashed #ff9800; /* Warna asal oren */
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
             box-sizing: border-box;
             border-radius: 8px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         
-        /* Teks panduan jarak di bawah video */
-        #distance-guide-text {
-            text-align: center;
-            font-weight: bold;
-            margin-top: 5px;
-            font-size: 14px;
-            color: #555;
+        /* Bila posisi kad tepat & terang, bingkai jadi hijau berkilat */
+        .viewfinder-frame.ready {
+            border: 3px solid #00ffcc !important;
+            box-shadow: 0 0 15px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.4);
         }
-        #distance-guide-text.too-far { color: blue; }
-        #distance-guide-text.ready { color: green; }
+
+        .viewfinder-text { 
+            position: absolute; 
+            top: 10px; 
+            width: 100%; 
+            text-align: center; 
+            color: #fff; 
+            font-size: 13px; 
+            font-weight: bold; 
+            background: rgba(0, 0, 0, 0.7); 
+            padding: 6px 0; 
+        }
 
         .upload-btn {
             display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
@@ -86,11 +103,11 @@
     
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline muted></video>
-        <!-- Garisan Panduan Statik -->
-        <div class="viewfinder-overlay"></div>
+        <!-- Bingkai kotak panduan visual -->
+        <div class="viewfinder-frame" id="view-frame">
+            <div class="viewfinder-text" id="view-msg">⚠️ Sila letak kad dalam kotak</div>
+        </div>
     </div>
-    <!-- Teks Panduan Jarak Dinamik -->
-    <div id="distance-guide-text">Tekan kamera untuk mula</div>
 
     <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
 
@@ -105,7 +122,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Demo Panduan:</b> Pastikan kad berada di dalam garisan putus-putus oren dan teks panduan bertukar hijau sebelum tekan 'Capture'.
+            <b>Smart Viewfinder:</b> Bingkai akan menyala hijau apabila kad dikesan dengan jelas di dalam kotak.
         </div>
 
         <div class="form-group">
@@ -177,9 +194,11 @@
         const cameraContainer = document.getElementById('camera-container');
         const btnStartCam = document.getElementById('btn-start-cam');
         const btnCaptureCam = document.getElementById('btn-capture-cam');
-        const distanceGuideText = document.getElementById('distance-guide-text');
+        const viewFrame = document.getElementById('view-frame');
+        const viewMsg = document.getElementById('view-msg');
         
         let mediaStream = null;
+        let analysisInterval = null;
 
         btnStartCam.addEventListener('click', async function() {
             statusDiv.innerHTML = "<p class='loading'>⏳ Meminta akses kamera...</p>";
@@ -195,70 +214,69 @@
                 cameraContainer.style.display = 'block';
                 btnCaptureCam.style.display = 'block';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='success'>📷 Kamera sedang aktif!</p>";
-                
-                // Mula memantau jarak kad dari kamera
-                startDistanceMonitor();
+                statusDiv.innerHTML = "<p class='success'>📷 Kamera aktif! Sila halakan kad dalam bingkai.</p>";
+
+                // Mula analisis cahaya dan objek dalam bingkai viewfinder
+                startFrameAnalysis();
 
             } catch (err) {
                 alert("Ralat Kamera: " + err.message);
-                statusDiv.innerHTML = "<p style='color:red;'>❌ Gagal membuka kamera. Pastikan guna HTTPS dan beri kebenaran.</p>";
+                statusDiv.innerHTML = "<p style='color:red;'>❌ Gagal membuka kamera. Pastikan guna HTTPS.</p>";
             }
         });
 
-        // Fungsi untuk menganggarkan jarak kad dan tukar warna teks panduan
-        function startDistanceMonitor() {
-            // Kita gunakan ektraksi kontras piksel mudah dalam kotak tengah
-            const analyzeCanvas = document.createElement('canvas');
-            const ctx = analyzeCanvas.getContext('2d');
-            const frameArea = document.querySelector('.viewfinder-overlay');
-            
-            setInterval(() => {
-                if (!videoStream.srcObject) return;
-                
-                // Ambil saiz video sebenar
-                const vWidth = videoStream.videoWidth;
-                const vHeight = videoStream.videoHeight;
-                if (vWidth === 0) return;
+        // Fungsi Pintar Analisis Bingkai Viewfinder
+        function startFrameAnalysis() {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
 
-                // Kira saiz dan kedudukan relatif viewfinder di atas video sebenar
-                // Asumsikan viewfinder berada di kedudukan 35% top, 10% left, 80% width, 30% height dari container
-                const cropX = vWidth * 0.10;
-                const cropY = vHeight * 0.35;
-                const cropW = vWidth * 0.80;
-                const cropH = vHeight * 0.30;
+            analysisInterval = setInterval(() => {
+                if (videoStream.readyState !== videoStream.HAVE_ENOUGH_DATA) return;
 
-                // Lukis kawasan viewfinder ke dalam canvas analisis kecil
-                analyzeCanvas.width = 100;
-                analyzeCanvas.height = 100;
-                ctx.drawImage(videoStream, cropX, cropY, cropW, cropH, 0, 0, 100, 100);
+                tempCanvas.width = 100;
+                tempCanvas.height = 100;
+                tempCtx.drawImage(videoStream, 0, 0, 100, 100);
 
-                // Analisis kecerahan purata kawasan tersebut (cahaya/gelap)
-                const imgData = ctx.getImageData(0, 0, 100, 100).data;
-                let brightness = 0;
-                for (let i = 0; i < imgData.length; i += 4) {
-                    brightness += (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
+                const imgData = tempCtx.getImageData(0, 0, 100, 100).data;
+                let totalBrightness = 0;
+                let contrastCheck = 0;
+
+                for (let i = 0; i < imgData.length; i += 16) {
+                    let r = imgData[i];
+                    let g = imgData[i+1];
+                    let b = imgData[i+2];
+                    let brightness = (r + g + b) / 3;
+                    totalBrightness += brightness;
+
+                    if (i > 16) {
+                        let prevB = (imgData[i-16] + imgData[i-15] + imgData[i-14]) / 3;
+                        contrastCheck += Math.abs(brightness - prevB);
+                    }
                 }
-                brightness = brightness / (imgData.length / 4);
 
-                // Tentukan arahan jarak berdasarkan kecerahan piksel di tengah
-                if (brightness > 180) {
-                    // Cahaya sangat terang dalam frame, kad mungkin terlalu jauh/silau
-                    distanceGuideText.innerText = "Kad terlalu jauh/kabur. Gerak ke depan sedikit.";
-                    distanceGuideText.className = "too-far";
-                } else if (brightness > 60 && brightness <= 180) {
-                    // Kecerahan ideal, kad menutupi frame dengan jelas
-                    distanceGuideText.innerText = "✨ Posisi OK! Sedia untuk Capture.";
-                    distanceGuideText.className = "ready";
+                let avgBrightness = totalBrightness / (imgData.length / 16);
+                let avgContrast = contrastCheck / (imgData.length / 16);
+
+                // Syarat kotak bertukar hijau (pencahayaan cukup dan objek stabil)
+                if (avgBrightness > 45 && avgBrightness < 220 && avgContrast > 3.0) {
+                    viewFrame.classList.add('ready');
+                    viewMsg.innerText = "✨ Posisi OK! Sedia untuk Capture";
+                    viewMsg.style.color = "#00ffcc";
+                } else if (avgBrightness <= 45) {
+                    viewFrame.classList.remove('ready');
+                    viewMsg.innerText = "💡 Terlalu gelap! Cari kawasan terang";
+                    viewMsg.style.color = "#ff4d4d";
                 } else {
-                    // Frame gelap gelita, kad mungkin menutupi kamera sepenuhnya atau terlalu dekat
-                    distanceGuideText.innerText = "Terlalu dekat/gelap. Gerak sedikit ke belakang/terangkan.";
-                    distanceGuideText.className = "too-far";
+                    viewFrame.classList.remove('ready');
+                    viewMsg.innerText = "↔️ Laraskan jarak & pastikan stabil";
+                    viewMsg.style.color = "#ffeb3b";
                 }
-            }, 500); // Analisis setiap 500ms
+            }, 500);
         }
 
         btnCaptureCam.addEventListener('click', function() {
+            if (analysisInterval) clearInterval(analysisInterval);
+
             const canvas = document.getElementById('canvas');
             canvas.width = videoStream.videoWidth || 1280;
             canvas.height = videoStream.videoHeight || 720;
@@ -272,8 +290,6 @@
             cameraContainer.style.display = 'none';
             btnCaptureCam.style.display = 'none';
             btnStartCam.style.display = 'block';
-            distanceGuideText.innerText = "Tekan kamera untuk mula";
-            distanceGuideText.className = "";
 
             processAndRunOCR(canvas);
         });
