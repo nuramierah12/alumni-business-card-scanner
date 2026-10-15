@@ -34,20 +34,23 @@
         .alert-note { background-color: #e2f0d9; color: #385723; padding: 10px; border-radius: 5px; border: 1px solid #c8e1b7; font-size: 13px; margin-bottom: 15px; }
         
         #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 15px; }
-        #video-stream { width: 100%; height: auto; display: block; }
+        #video-stream { width: 100%; height: auto; display: block; cursor: pointer; }
         .viewfinder-overlay {
             position: absolute; top: 35%; left: 10%; width: 80%; height: 30%;
             border: 2px dashed #00ffcc; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
             pointer-events: none; box-sizing: border-box; border-radius: 6px;
         }
         .viewfinder-text { position: absolute; top: 5px; width: 100%; text-align: center; color: #fff; font-size: 12px; background: rgba(0, 0, 0, 0.6); padding: 4px 0; }
-
+        
+        .camera-controls { display: none; gap: 10px; margin-bottom: 15px; }
         .upload-btn {
             display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
             font-weight: bold; font-size: 15px; text-align: center; cursor: pointer; margin-top: 10px; box-sizing: border-box; border: none;
         }
         .btn-camera { background-color: #008CBA; }
-        .btn-capture { background-color: #ff9800; margin-top: 5px; display: none; }
+        .btn-capture { background-color: #ff9800; margin: 0; flex: 2; }
+        .btn-flash { background-color: #333; margin: 0; flex: 1; }
+        .btn-flash.active { background-color: #f39c12; color: #fff; }
         .btn-gallery { background-color: #6c757d; }
         .btn-save { background-color: #4CAF50; color: white; padding: 15px; width: 100%; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: none; cursor: pointer; margin-top: 20px;}
     </style>
@@ -69,10 +72,14 @@
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline></video>
         <div class="viewfinder-overlay">
-            <div class="viewfinder-text">Align business card inside the frame</div>
+            <div class="viewfinder-text">Tap screen to focus • Align card inside</div>
         </div>
     </div>
-    <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
+    
+    <div class="camera-controls" id="camera-controls">
+        <button type="button" class="upload-btn btn-flash" id="btn-flash">🔦 Flash: OFF</button>
+        <button type="button" class="upload-btn btn-capture" id="btn-capture-cam">🔘 Capture Card Photo</button>
+    </div>
 
     <label for="gallery-input" class="upload-btn btn-gallery">
         🖼️ Choose from Gallery
@@ -85,7 +92,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>System Note:</b> Auto-focus and image contrast enhancement are active. Review parsed details before saving.
+            <b>Advanced Camera Active:</b> Touch-to-focus and flashlight toggle are enabled to prevent blurry scans.
         </div>
 
         <div class="form-group">
@@ -155,10 +162,14 @@
         
         const videoStream = document.getElementById('video-stream');
         const cameraContainer = document.getElementById('camera-container');
+        const cameraControls = document.getElementById('camera-controls');
         const btnStartCam = document.getElementById('btn-start-cam');
         const btnCaptureCam = document.getElementById('btn-capture-cam');
+        const btnFlash = document.getElementById('btn-flash');
         
         let mediaStream = null;
+        let track = null;
+        let flashOn = false;
 
         btnStartCam.addEventListener('click', async function() {
             try {
@@ -171,28 +182,84 @@
                     },
                     audio: false
                 });
+                
                 videoStream.srcObject = mediaStream;
+                track = mediaStream.getVideoTracks()[0];
+
                 cameraContainer.style.display = 'block';
-                btnCaptureCam.style.display = 'block';
+                cameraControls.style.display = 'flex';
                 btnStartCam.style.display = 'none';
-                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Keep lighting bright and avoid glare.</p>";
+                
+                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Tap screen to re-focus.</p>";
             } catch (err) {
                 alert("❌ Camera error: " + err);
             }
         });
 
+        // Touch-to-Focus Handler (Sentuh skrin untuk trigger auto-fokus kamera)
+        videoStream.addEventListener('click', async function() {
+            if (track && track.getCapabilities && track.getCapabilities().focusMode) {
+                try {
+                    await track.applyConstraints({
+                        advanced: [{ focusMode: 'single-shot' }]
+                    });
+                    statusDiv.innerHTML = "<p class='success'>🎯 Camera focused!</p>";
+                    setTimeout(() => {
+                        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                    }, 1500);
+                } catch (e) {
+                    console.log("Focus constraint not fully supported on this device.");
+                }
+            }
+        });
+
+        // Flashlight / Torch Toggle Handler
+        btnFlash.addEventListener('click', async function() {
+            if (!track) return;
+            const capabilities = track.getCapabilities();
+            
+            if (capabilities && capabilities.torch) {
+                flashOn = !flashOn;
+                try {
+                    await track.applyConstraints({
+                        advanced: [{ torch: flashOn }]
+                    });
+                    if (flashOn) {
+                        btnFlash.innerText = "🔦 Flash: ON";
+                        btnFlash.classList.add('active');
+                    } else {
+                        btnFlash.innerText = "🔦 Flash: OFF";
+                        btnFlash.classList.remove('active');
+                    }
+                } catch (err) {
+                    alert("❌ Failed to toggle flashlight: " + err);
+                }
+            } else {
+                alert("⚠️ Flashlight (Torch mode) is not supported on this device/browser.");
+            }
+        });
+
         btnCaptureCam.addEventListener('click', function() {
             const canvas = document.getElementById('canvas');
-            canvas.width = videoStream.videoWidth || 1280;
-            canvas.height = videoStream.videoHeight || 720;
+            canvas.width = videoStream.videoWidth;
+            canvas.height = videoStream.videoHeight;
+            
             const ctx = canvas.getContext('2d');
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
+            // Padam lampu flash jika sedang menyala sebelum tutup kamera
+            if (track && flashOn) {
+                track.applyConstraints({ advanced: [{ torch: false }] });
+                flashOn = false;
+                btnFlash.innerText = "🔦 Flash: OFF";
+                btnFlash.classList.remove('active');
+            }
+
             if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream.getTracks().forEach(t => t.stop());
             }
             cameraContainer.style.display = 'none';
-            btnCaptureCam.style.display = 'none';
+            cameraControls.style.display = 'none';
             btnStartCam.style.display = 'block';
 
             processAndRunOCR(canvas);
@@ -212,9 +279,9 @@
                 img.src = event.target.result;
                 img.onload = function() {
                     const canvas = document.getElementById('canvas');
-                    const ctx = canvas.getContext('2d');
                     canvas.width = img.width;
                     canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
                     
                     processAndRunOCR(canvas);
@@ -248,7 +315,6 @@
             statusDiv.innerHTML = "<p class='loading'>⏳ Reading text and parsing fields...</p>";
             btnSimpan.style.display = "none";
 
-            // Reset form fields
             document.getElementById('in-title').value = "";
             document.getElementById('in-firstname').value = "";
             document.getElementById('in-lastname').value = "";
