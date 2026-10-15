@@ -33,15 +33,28 @@
         .success { color: green; font-weight: bold; }
         .alert-note { background-color: #e2f0d9; color: #385723; padding: 10px; border-radius: 5px; border: 1px solid #c8e1b7; font-size: 13px; margin-bottom: 15px; }
         
-        #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 15px; }
-        #video-stream { width: 100%; height: auto; display: block; cursor: pointer; }
-        .viewfinder-overlay {
-            position: absolute; top: 35%; left: 10%; width: 80%; height: 30%;
-            border: 2px dashed #00ffcc; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4);
-            pointer-events: none; box-sizing: border-box; border-radius: 6px;
-        }
-        .viewfinder-text { position: absolute; top: 5px; width: 100%; text-align: center; color: #fff; font-size: 12px; background: rgba(0, 0, 0, 0.6); padding: 4px 0; }
+        #camera-container { position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 10px; }
+        #video-stream { width: 100%; height: auto; display: block; }
         
+        /* Dynamic Viewfinder Frame */
+        .viewfinder-overlay {
+            position: absolute; top: 25%; left: 10%; width: 80%; height: 50%;
+            border: 3px dashed #ff4d4d; box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+            pointer-events: none; box-sizing: border-box; border-radius: 8px;
+            transition: border-color 0.3s ease;
+        }
+        .viewfinder-overlay.ready {
+            border: 3px solid #00ffcc !important;
+            box-shadow: 0 0 15px #00ffcc, 0 0 0 1000px rgba(0, 0, 0, 0.5);
+        }
+        .viewfinder-text { 
+            position: absolute; top: 5px; width: 100%; text-align: center; color: #fff; 
+            font-size: 13px; font-weight: bold; background: rgba(0, 0, 0, 0.7); padding: 6px 0; 
+        }
+        
+        .brightness-box { display: none; align-items: center; gap: 10px; background: #222; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; color: white; font-size: 13px; }
+        .brightness-box input { flex: 1; }
+
         .camera-controls { display: none; gap: 10px; margin-bottom: 15px; }
         .upload-btn {
             display: block; width: 100%; padding: 14px; color: white; border-radius: 5px;
@@ -71,9 +84,14 @@
     
     <div id="camera-container">
         <video id="video-stream" autoplay playsinline></video>
-        <div class="viewfinder-overlay">
-            <div class="viewfinder-text">Tap screen to focus • Align card inside</div>
+        <div class="viewfinder-overlay" id="viewfinder-frame">
+            <div class="viewfinder-text" id="viewfinder-msg">⚠️ Center business card inside box</div>
         </div>
+    </div>
+
+    <div class="brightness-box" id="brightness-box">
+        <span>☀️ Brightness:</span>
+        <input type="range" id="brightness-range" min="0.5" max="2.0" step="0.1" value="1.0">
     </div>
     
     <div class="camera-controls" id="camera-controls">
@@ -92,7 +110,7 @@
     
     <div id="output-box">
         <div class="alert-note">
-            <b>Advanced Camera Active:</b> Touch-to-focus and flashlight toggle are enabled to prevent blurry scans.
+            <b>Smart Viewfinder Active:</b> Align card until the frame turns glowing green for optimal scanning results.
         </div>
 
         <div class="form-group">
@@ -163,22 +181,26 @@
         const videoStream = document.getElementById('video-stream');
         const cameraContainer = document.getElementById('camera-container');
         const cameraControls = document.getElementById('camera-controls');
+        const brightnessBox = document.getElementById('brightness-box');
+        const brightnessRange = document.getElementById('brightness-range');
         const btnStartCam = document.getElementById('btn-start-cam');
         const btnCaptureCam = document.getElementById('btn-capture-cam');
         const btnFlash = document.getElementById('btn-flash');
+        const viewfinderFrame = document.getElementById('viewfinder-frame');
+        const viewfinderMsg = document.getElementById('viewfinder-msg');
         
         let mediaStream = null;
         let track = null;
         let flashOn = false;
+        let analysisInterval = null;
 
         btnStartCam.addEventListener('click', async function() {
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: 'environment', 
-                        width: { ideal: 1920 }, 
-                        height: { ideal: 1080 },
-                        advanced: [{ focusMode: 'continuous' }]
+                        width: { ideal: 3840 }, 
+                        height: { ideal: 2160 }
                     },
                     audio: false
                 });
@@ -187,33 +209,73 @@
                 track = mediaStream.getVideoTracks()[0];
 
                 cameraContainer.style.display = 'block';
+                brightnessBox.style.display = 'flex';
                 cameraControls.style.display = 'flex';
                 btnStartCam.style.display = 'none';
                 
-                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Tap screen to re-focus.</p>";
+                statusDiv.innerHTML = "<p class='loading'>📷 Live camera active. Align card in frame.</p>";
+                
+                // Mula jalankan analisis frame video secara berkala
+                startViewfinderAnalyzer();
+
             } catch (err) {
                 alert("❌ Camera error: " + err);
             }
         });
 
-        // Touch-to-Focus Handler (Sentuh skrin untuk trigger auto-fokus kamera)
-        videoStream.addEventListener('click', async function() {
-            if (track && track.getCapabilities && track.getCapabilities().focusMode) {
-                try {
-                    await track.applyConstraints({
-                        advanced: [{ focusMode: 'single-shot' }]
-                    });
-                    statusDiv.innerHTML = "<p class='success'>🎯 Camera focused!</p>";
-                    setTimeout(() => {
-                        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-                    }, 1500);
-                } catch (e) {
-                    console.log("Focus constraint not fully supported on this device.");
+        // Fungsi Pintar Menganalisis Cahaya & Objek dalam Viewfinder
+        function startViewfinderAnalyzer() {
+            const analysisCanvas = document.createElement('canvas');
+            const analysisCtx = analysisCanvas.getContext('2d');
+
+            analysisInterval = setInterval(() => {
+                if (videoStream.readyState !== videoStream.HAVE_ENOUGH_DATA) return;
+
+                analysisCanvas.width = 150;
+                analysisCanvas.height = 100;
+                analysisCtx.drawImage(videoStream, 0, 0, 150, 100);
+
+                const imgData = analysisCtx.getImageData(0, 0, 150, 100).data;
+                let totalBrightness = 0;
+                let edgeVariation = 0;
+
+                for (let i = 0; i < imgData.length; i += 16) {
+                    let r = imgData[i];
+                    let g = imgData[i+1];
+                    let b = imgData[i+2];
+                    let brightness = (r + g + b) / 3;
+                    totalBrightness += brightness;
+
+                    if (i > 16) {
+                        let prevBrightness = (imgData[i-16] + imgData[i-15] + imgData[i-14]) / 3;
+                        edgeVariation += Math.abs(brightness - prevBrightness);
+                    }
                 }
-            }
+
+                let avgBrightness = totalBrightness / (imgData.length / 16);
+                let avgEdge = edgeVariation / (imgData.length / 16);
+
+                // Syarat kotak menyala hijau: Pencahayaan stabil & ada variasi objek kad
+                if (avgBrightness > 40 && avgBrightness < 230 && avgEdge > 3.5) {
+                    viewfinderFrame.classList.add('ready');
+                    viewfinderMsg.innerText = "✨ Perfect! Ready to Capture";
+                    viewfinderMsg.style.color = "#00ffcc";
+                } else if (avgBrightness <= 40) {
+                    viewfinderFrame.classList.remove('ready');
+                    viewfinderMsg.innerText = "💡 Too dark! Turn on Flash or Brightness";
+                    viewfinderMsg.style.color = "#ff4d4d";
+                } else {
+                    viewfinderFrame.classList.remove('ready');
+                    viewfinderMsg.innerText = "↔️ Adjust position & steady card";
+                    viewfinderMsg.style.color = "#ffeb3b";
+                }
+            }, 500);
+        }
+
+        brightnessRange.addEventListener('input', function() {
+            videoStream.style.filter = `brightness(${brightnessRange.value}) contrast(1.2)`;
         });
 
-        // Flashlight / Torch Toggle Handler
         btnFlash.addEventListener('click', async function() {
             if (!track) return;
             const capabilities = track.getCapabilities();
@@ -221,9 +283,7 @@
             if (capabilities && capabilities.torch) {
                 flashOn = !flashOn;
                 try {
-                    await track.applyConstraints({
-                        advanced: [{ torch: flashOn }]
-                    });
+                    await track.applyConstraints({ advanced: [{ torch: flashOn }] });
                     if (flashOn) {
                         btnFlash.innerText = "🔦 Flash: ON";
                         btnFlash.classList.add('active');
@@ -235,19 +295,21 @@
                     alert("❌ Failed to toggle flashlight: " + err);
                 }
             } else {
-                alert("⚠️ Flashlight (Torch mode) is not supported on this device/browser.");
+                alert("⚠️ Flashlight is not supported on this device/browser.");
             }
         });
 
         btnCaptureCam.addEventListener('click', function() {
+            if (analysisInterval) clearInterval(analysisInterval);
+
             const canvas = document.getElementById('canvas');
-            canvas.width = videoStream.videoWidth;
-            canvas.height = videoStream.videoHeight;
+            canvas.width = videoStream.videoWidth || 1920;
+            canvas.height = videoStream.videoHeight || 1080;
             
             const ctx = canvas.getContext('2d');
+            ctx.filter = `brightness(${brightnessRange.value}) contrast(1.5)`;
             ctx.drawImage(videoStream, 0, 0, canvas.width, canvas.height);
 
-            // Padam lampu flash jika sedang menyala sebelum tutup kamera
             if (track && flashOn) {
                 track.applyConstraints({ advanced: [{ torch: false }] });
                 flashOn = false;
@@ -259,6 +321,7 @@
                 mediaStream.getTracks().forEach(t => t.stop());
             }
             cameraContainer.style.display = 'none';
+            brightnessBox.style.display = 'none';
             cameraControls.style.display = 'none';
             btnStartCam.style.display = 'block';
 
@@ -294,7 +357,7 @@
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
 
-            const contrastFactor = 1.5;
+            const contrastFactor = 1.8;
             const intercept = 128 * (1 - contrastFactor);
 
             for (let i = 0; i < data.length; i += 4) {
@@ -348,7 +411,7 @@
                 // 1. Extract Email & Phone
                 for (let line of lines) {
                     if (!detectedEmail && line.includes('@')) {
-                        let matchEmail = line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                        let matchEmail = line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-+\.[a-zA-Z0-9_-]+)/);
                         if (matchEmail) detectedEmail = matchEmail[0];
                     }
                     if (!detectedPhone && (/(\+?60|01|0[3-9])[0-9\-\s]{7,12}/).test(line)) {
